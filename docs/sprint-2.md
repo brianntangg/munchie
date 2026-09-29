@@ -122,3 +122,17 @@ confirmation, set both Confirm signup and Magic Link templates to the contents o
 `supabase/templates/code.html`, and configure an SMTP provider for real recipients.
 Use the hosted project URL and publishable key in the app. Verify the same two-user
 flow before a sprint demo with real email. Deployment was not part of local setup.
+
+## Frontend integration
+
+The `frontend-poc` tab layout, theme, cards, and UI components are integrated with
+Supabase. Feed, Dining, Post, and Account display live database data; post and
+dining detail pages also use Supabase. Friends is a coming-soon screen. Ratings,
+comments, mock menus, and meal filters are not exposed as working features.
+Email-code authentication replaces the prototype password/demo-account login.
+The original prototype remains in Git history (`origin/frontend-poc`).
+
+For browser testing on the backend computer, run from `apps/mobile`:
+`EXPO_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321 npm run web -- --clear`.
+Check all tabs, posting, post/hall links, reload/session restoration, and sign-out.
+The account tab lists only your posts; each hall page lists only that hall's posts.

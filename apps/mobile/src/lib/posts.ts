@@ -4,8 +4,10 @@ import type { Tables } from './database.types';
 
 export type FeedPost = Tables<'posts'> & { profiles: { display_name: string }; dining_halls: { name: string }; imageUrl: string | null };
 export const PAGE_SIZE = 20;
-export async function loadPosts(cursor?: { created_at: string; id: string }): Promise<FeedPost[]> {
+export async function loadPosts(cursor?: { created_at: string; id: string }, filters?: { hallId?: string; authorId?: string }): Promise<FeedPost[]> {
   let query = supabase.from('posts').select('*, profiles!inner(display_name), dining_halls!inner(name)').order('created_at', { ascending: false }).order('id', { ascending: false }).limit(PAGE_SIZE);
+  if (filters?.hallId) query = query.eq('dining_hall_id', filters.hallId);
+  if (filters?.authorId) query = query.eq('author_id', filters.authorId);
   if (cursor) query = query.or(`created_at.lt.${cursor.created_at},and(created_at.eq.${cursor.created_at},id.lt.${cursor.id})`);
   const { data, error } = await query;
   if (error) throw error;
@@ -34,4 +36,13 @@ export async function publishPost({ id, userId, hallId, caption, base64 }: { id:
     if (!lookupError) await supabase.storage.from('food-photos').remove([path]);
     throw error;
   }
+}
+
+export async function loadPost(id: string): Promise<FeedPost | null> {
+  const { data, error } = await supabase.from('posts').select('*, profiles!inner(display_name), dining_halls!inner(name)').eq('id', id).maybeSingle();
+  if (error) throw error;
+  if (!data) return null;
+  const { data: photo, error: photoError } = await supabase.storage.from('food-photos').createSignedUrl(data.photo_path, 3600);
+  if (photoError) throw photoError;
+  return { ...data, imageUrl: photo.signedUrl };
 }

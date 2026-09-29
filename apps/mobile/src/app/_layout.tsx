@@ -1,11 +1,21 @@
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { AuthProvider } from '../lib/auth';
-import { colors } from '../components/ui';
+import { AuthProvider, useAuth } from '@/lib/auth';
+import { LoadingSpinner } from '@/components/ui';
+import { colors } from '@/theme';
 
-export default function Layout() {
-  return <AuthProvider><StatusBar style="dark" /><Stack screenOptions={{ headerStyle: { backgroundColor: colors.paper }, headerTintColor: colors.ink, contentStyle: { backgroundColor: colors.paper } }}>
-    <Stack.Screen name="index" options={{ title: 'munchie', headerBackVisible: false }} />
-    <Stack.Screen name="post" options={{ title: 'Share a meal' }} />
-  </Stack></AuthProvider>;
+function RootNavigator() {
+  const { session, loading } = useAuth();
+  if (loading) return <LoadingSpinner label="Loading your session…" />;
+  return <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background }, headerTintColor: colors.text, headerStyle: { backgroundColor: colors.background }, headerShadowVisible: false }}>
+    <Stack.Protected guard={!session}><Stack.Screen name="(auth)" /></Stack.Protected>
+    <Stack.Protected guard={!!session}>
+      <Stack.Screen name="(tabs)" />
+      <Stack.Screen name="post/[id]" options={{ headerShown: true, title: 'Post', headerBackTitle: 'Back' }} />
+      <Stack.Screen name="dining/[id]" options={{ headerShown: true, title: 'Dining hall', headerBackTitle: 'Back' }} />
+    </Stack.Protected>
+  </Stack>;
+}
+export default function RootLayout() {
+  return <AuthProvider><StatusBar style="dark" /><RootNavigator /></AuthProvider>;
 }

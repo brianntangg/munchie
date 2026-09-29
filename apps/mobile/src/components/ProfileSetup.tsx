@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { ScrollView, Text } from 'react-native';
-import { Button, ErrorText, Field, styles } from './ui';
+import { Button, ErrorText, Field, styles } from './form-ui';
 import { message, supabase } from '../lib/supabase';
 
 export function ProfileSetup({ userId, onSaved }: { userId: string; onSaved: () => void }) {

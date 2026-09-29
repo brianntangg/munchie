@@ -3,12 +3,13 @@ import { ActivityIndicator, Image, KeyboardAvoidingView, Platform, ScrollView, T
 import { Redirect, router } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { randomUUID } from 'expo-crypto';
-import { useAuth } from '../lib/auth';
-import { message, supabase } from '../lib/supabase';
-import type { Tables } from '../lib/database.types';
-import { publishPost } from '../lib/posts';
-import { Button, ErrorText, Field, styles } from '../components/ui';
+import { useAuth } from '@/lib/auth';
+import { message, supabase } from '@/lib/supabase';
+import type { Tables } from '@/lib/database.types';
+import { publishPost } from '@/lib/posts';
+import { Button, ErrorText, Field, styles } from '@/components/form-ui';
 
 export default function Post() {
   const { session, loading } = useAuth();
@@ -59,11 +60,12 @@ export default function Post() {
     postId.current ??= randomUUID();
     try {
       await publishPost({ id: postId.current, userId, hallId, caption, base64: photo.base64 });
-      router.replace('/');
+      setPhoto(null); setCaption(''); setHallId(''); postId.current = null;
+      router.navigate('/');
     } catch (error) { setError(`${message(error)} Your draft is still here; you can retry.`); }
     finally { submitting.current = false; setBusy(false); }
   }
-  return <KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === 'ios' ? 'padding' : undefined}><ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content}>
+  return <SafeAreaView style={styles.screen} edges={['top']}><KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === 'ios' ? 'padding' : undefined}><ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content}>
     <Text style={styles.heading}>Share your plate</Text><Text style={styles.body}>A photo, a dining hall, and a little food inspiration.</Text>
     {photo && <Image source={{ uri: photo.uri }} style={[styles.photo, { borderRadius: 16 }]} accessibilityLabel="Selected meal photo" />}
     <Button title="Take a photo" onPress={() => choosePhoto(true)} disabled={busy} secondary /><Button title={photo ? 'Choose a different photo' : 'Choose from library'} onPress={() => choosePhoto(false)} disabled={busy} secondary />
@@ -71,5 +73,5 @@ export default function Post() {
     <ErrorText>{hallError}</ErrorText>{!!hallError && <Button title="Reload dining halls" secondary onPress={() => { setHallError(''); setAttempt((value) => value + 1); }} />}
     <Field label="Caption (optional)" placeholder="What’s good today?" value={caption} onChangeText={setCaption} maxLength={280} multiline editable={!busy} />
     <ErrorText>{error}</ErrorText><Button title={busy ? 'Please wait…' : 'Post meal'} onPress={submit} disabled={busy || !photo || !hallId} />
-  </ScrollView></KeyboardAvoidingView>;
+  </ScrollView></KeyboardAvoidingView></SafeAreaView>;
 }

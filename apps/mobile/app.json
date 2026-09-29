@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Munchie",
-    "slug": "mobile",
+    "slug": "munchie",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -33,6 +33,9 @@
         }
       ]
     ],
-    "scheme": "munchie"
+    "scheme": "munchie",
+    "experiments": {
+      "typedRoutes": true
+    }
   }
 }
