@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "mobile",
-    "slug": "mobile",
+    "name": "Munchie",
+    "slug": "munchie",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -20,6 +20,22 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-sqlite",
+      "expo-router",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Munchie uses your photos to share meals with campus.",
+          "cameraPermission": "Munchie uses your camera to photograph meals.",
+          "microphonePermission": false
+        }
+      ]
+    ],
+    "scheme": "munchie",
+    "experiments": {
+      "typedRoutes": true
     }
   }
 }

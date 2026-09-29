@@ -35,6 +35,10 @@ The project will use a React Native and Expo frontend connected to Supabase for 
 
 Munchie is initially designed specifically for Vanderbilt University students who use campus dining and want a more social, real-time way to discover food options.
 
+## Sprint 2 MVP
+
+The core local MVP includes verified Vanderbilt email sign-in, display names, meal photo posting, and a shared dining feed. See [Sprint 2 setup and acceptance checks](docs/sprint-2.md).
+
 ## Development
 
 This project is being developed as part of Vanderbilt University's Principles of Software Engineering course.
