@@ -1,0 +1,2 @@
+-- Dining halls are inserted by the migration so local and hosted projects agree.
+-- Create demo users through email OTP; local mail is captured at localhost:54324.

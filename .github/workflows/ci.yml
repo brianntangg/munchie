@@ -7,7 +7,7 @@ on:
 
 jobs:
   typecheck:
-    name: Install and typecheck mobile app
+    name: Lint and typecheck mobile app
     runs-on: ubuntu-latest
 
     defaults:
@@ -28,5 +28,8 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Lint
+        run: npm run lint
+
       - name: Typecheck
-        run: npx tsc --noEmit
+        run: npm run typecheck
