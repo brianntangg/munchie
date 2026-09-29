@@ -1,4 +1,4 @@
-// Static placeholder data for the prototype. Replace with Supabase queries later.
+// Historical prototype fixtures; current screens read Supabase and do not import this file.
 
 export type Meal = 'breakfast' | 'lunch' | 'dinner';
 

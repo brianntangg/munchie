@@ -1,4 +1,3 @@
-// Vanderbilt black & gold, kept deliberately small until a real design system exists.
 export const colors = {
   background: '#FAF8F4',
   surface: '#FFFFFF',

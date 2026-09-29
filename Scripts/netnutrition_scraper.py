@@ -14,10 +14,6 @@ driver = webdriver.Chrome()
 wait = WebDriverWait(driver, 10)
 
 
-# ============================================================
-# LOCATIONS
-# ============================================================
-
 def get_locations():
 
     elements = driver.find_elements(
@@ -46,10 +42,6 @@ def get_locations():
     return locations
 
 
-# ============================================================
-# SELECT LOCATION
-# ============================================================
-
 def select_location(unit_id):
 
     selector = (
@@ -67,13 +59,11 @@ def select_location(unit_id):
 
     print(f"    Selecting location: {name}")
 
-    # Directly trigger NetNutrition's own handler
     driver.execute_script(
         "NetNutrition.UI.handleNavBarSelection(arguments[0]);",
         el
     )
 
-    # Wait until the date selector is rebuilt
     wait.until(
         lambda d: len(
             d.find_elements(
@@ -85,10 +75,6 @@ def select_location(unit_id):
 
     return name
 
-
-# ============================================================
-# GET DATES
-# ============================================================
 
 def get_dates():
 
@@ -127,10 +113,6 @@ def get_dates():
     return dates
 
 
-# ============================================================
-# SELECT DATE
-# ============================================================
-
 def select_date(date_value):
 
     selector = (
@@ -138,9 +120,7 @@ def select_date(date_value):
         f'a[data-type="DT"][data-date="{date_value}"]'
     )
 
-    # IMPORTANT:
-    # Find the date AGAIN immediately before clicking it.
-    # This avoids using a stale element from a previous page state.
+    # Re-query the date element because menu navigation replaces the DOM.
     el = wait.until(
         EC.presence_of_element_located(
             (By.CSS_SELECTOR, selector)
@@ -151,7 +131,6 @@ def select_date(date_value):
 
     print(f"    Selecting date: {date_name}")
 
-    # Scroll it into view
     driver.execute_script(
         """
         arguments[0].scrollIntoView({
@@ -161,32 +140,20 @@ def select_date(date_value):
         el
     )
 
-    # Trigger the exact NetNutrition handler
     driver.execute_script(
         "NetNutrition.UI.handleNavBarSelection(arguments[0]);",
         el
     )
 
-    # --------------------------------------------------------
-    # DO NOT WAIT FOR cbo_nn_HeaderSelectedDate
-    #
-    # That header is not reliable enough.
-    #
-    # Instead, wait for NetNutrition's menu results to update.
-    # --------------------------------------------------------
+    # The selected-date header can lag; allow menu results to update instead.
 
     time.sleep(0.5)
 
     return date_name
 
 
-# ============================================================
-# GET MENUS
-# ============================================================
-
 def get_menus(date_name):
 
-    # Give NetNutrition a moment to populate results
     try:
         wait.until(
             lambda d: len(
@@ -230,8 +197,7 @@ def get_menus(date_name):
         if not text:
             continue
 
-        # Example:
-        # Wednesday, September 30, 2026-Lunch
+        # Menu labels combine the date and meal, e.g. Wednesday, September 30, 2026-Lunch.
 
         if not text.startswith(date_name):
             continue
@@ -250,7 +216,6 @@ def get_menus(date_name):
             "meal": meal
         })
 
-    # Remove duplicate menus
     unique = {}
 
     for menu in menus:
@@ -258,10 +223,6 @@ def get_menus(date_name):
 
     return list(unique.values())
 
-
-# ============================================================
-# LOAD MENU
-# ============================================================
 
 def load_menu(unit_id, menu_id):
 
@@ -274,7 +235,6 @@ def load_menu(unit_id, menu_id):
         """
     )
 
-    # Wait for food rows
     try:
         wait.until(
             lambda d: len(
@@ -288,10 +248,6 @@ def load_menu(unit_id, menu_id):
     except:
         pass
 
-
-# ============================================================
-# SCRAPE FOOD NAME + CATEGORY
-# ============================================================
 
 def scrape_items():
 
@@ -310,9 +266,6 @@ def scrape_items():
 
         classes = row.get_attribute("class") or ""
 
-        # ----------------------------------------------------
-        # CATEGORY
-        # ----------------------------------------------------
 
         if "cbo_nn_itemGroupRow" in classes:
 
@@ -329,9 +282,6 @@ def scrape_items():
 
             continue
 
-        # ----------------------------------------------------
-        # FOOD
-        # ----------------------------------------------------
 
         if (
             "cbo_nn_itemPrimaryRow" not in classes
@@ -369,10 +319,6 @@ def scrape_items():
     return items
 
 
-# ============================================================
-# SAVE
-# ============================================================
-
 def save_data(data):
 
     with open(
@@ -388,10 +334,6 @@ def save_data(data):
             ensure_ascii=False
         )
 
-
-# ============================================================
-# MAIN
-# ============================================================
 
 def scrape():
 
@@ -413,9 +355,6 @@ def scrape():
 
     all_data = []
 
-    # ========================================================
-    # LOCATIONS
-    # ========================================================
 
     for location_index, location in enumerate(
         locations,
@@ -436,15 +375,9 @@ def scrape():
 
         try:
 
-            # ------------------------------------------------
-            # SELECT LOCATION
-            # ------------------------------------------------
 
             select_location(unit_id)
 
-            # ------------------------------------------------
-            # GET DATES
-            # ------------------------------------------------
 
             dates = get_dates()
 
@@ -452,9 +385,6 @@ def scrape():
                 f"  Found {len(dates)} dates"
             )
 
-            # =================================================
-            # DATES
-            # =================================================
 
             for date_index, date in enumerate(
                 dates,
@@ -473,25 +403,13 @@ def scrape():
 
                 try:
 
-                    # =================================================
-                    # RESET TO LOCATION
-                    # =================================================
-                    #
-                    # After loading a menu, NetNutrition is no longer
-                    # in the clean date-selector state.
-                    #
-                    # So re-select the location before every date.
-                    # =================================================
+                    # Reselect the location before each date to restore the date selector after a menu load.
 
                     select_location(unit_id)
 
-                    # ------------------------------------------------
-                    # GET FRESH DATE ELEMENTS
-                    # ------------------------------------------------
 
                     current_dates = get_dates()
 
-                    # Find requested date again
                     found_date = None
 
                     for current_date in current_dates:
@@ -512,17 +430,11 @@ def scrape():
 
                         continue
 
-                    # ------------------------------------------------
-                    # SELECT DATE
-                    # ------------------------------------------------
 
                     selected_date = select_date(
                         date_value
                     )
 
-                    # ------------------------------------------------
-                    # GET MENUS
-                    # ------------------------------------------------
 
                     menus = get_menus(
                         selected_date
@@ -532,9 +444,6 @@ def scrape():
                         f"    Found {len(menus)} menus"
                     )
 
-                    # ------------------------------------------------
-                    # MENUS
-                    # ------------------------------------------------
 
                     for menu_index, menu in enumerate(
                         menus,
@@ -553,15 +462,11 @@ def scrape():
 
                         try:
 
-                            # Load menu
                             load_menu(
                                 menu_unit_id,
                                 menu_id
                             )
 
-                            # Only get:
-                            # food name
-                            # category
                             items = scrape_items()
 
                             print(
@@ -579,7 +484,7 @@ def scrape():
                                 "items": items
                             })
 
-                            # Save continuously
+                            # Persist each menu so later failures retain collected results.
                             save_data(all_data)
 
                         except Exception as e:
@@ -603,9 +508,6 @@ def scrape():
                 f"{location_name}: {e}"
             )
 
-    # ========================================================
-    # DONE
-    # ========================================================
 
     save_data(all_data)
 
@@ -624,10 +526,6 @@ def scrape():
         "vanderbilt_all_menus.json"
     )
 
-
-# ============================================================
-# RUN
-# ============================================================
 
 try:
     scrape()

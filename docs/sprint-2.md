@@ -1,138 +1,115 @@
-# Sprint 2 MVP
+# Sprint 2 demo and testing
 
-The milestone is: two verified campus users can sign in, choose a display name,
-upload a meal photo with a dining hall and optional caption, and see each other's
-posts. This sprint includes camera/library selection, JPEG resizing, private
-photo storage, a newest-first paginated feed, pull-to-refresh, session persistence,
-and sign-out.
+## Scope
 
-Deferred to sprints 3–5: ratings, likes, comments, friends/following, enforced meal
-windows, automatic/realtime refresh, dining-data integration, moderation, profile
-editing, and post editing/deletion. Posting is available at any time in this MVP.
-Vanderbilt email verification establishes access to a campus email address; it
-does not independently verify current student enrollment.
+Two campus users can verify their email, choose display names, share dining
+photos, and view each other's posts. Feed, Dining, Post, Account, and detail
+screens use Supabase data. Friends is explicitly marked coming soon.
 
-## Run locally
+Later work: ratings, likes, comments, following, meal posting windows, automatic
+feed updates, editing/deleting posts, profile editing, moderation, orphan-upload
+cleanup, and menu integration. The standalone scraper is not connected to the
+Dining tab. Posting is currently available at any time.
 
-Requirements: Node 22.13+ (CI uses 24), npm, and running Docker Desktop.
-Run these commands from the repository root:
+Start with [local setup](local-development.md). For real mailbox delivery, see
+[email setup](email-delivery.md); local codes appear only in the captured inbox.
 
-```sh
-npx --yes supabase start
-cd apps/mobile
-npm ci
-cp .env.example .env.local
-```
+## Browser demo (about three minutes)
 
-Set `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY` in `.env.local` to the publishable key
-printed by `supabase start` (or `npx --yes supabase status`). Never put a secret or
-service-role key in the app. `.env.local` is ignored by Git.
+Prepare a food photo on your computer and keep the captured inbox open in another
+tab. Start the web app and enable Chrome's
+[phone-sized view](local-development.md#phone-sized-browser-view).
 
-Set `EXPO_PUBLIC_SUPABASE_URL` for the device you use:
+| Step | Action | What it demonstrates |
+| --- | --- | --- |
+| Login | Request a code for `alice@vanderbilt.edu`, retrieve it at localhost:54324, and verify | Campus email-code flow |
+| Profile | Choose a display name for a new account | Profile stored in the database |
+| Feed | Browse posts or explain the empty state | Shared dining feed |
+| Post | Choose a file, select a hall, add a caption, submit | Actual photo storage and post creation |
+| Dining | Open that hall and the meal detail | Hall filtering and detail navigation |
+| Account | Show your name and posts | Current user's profile and author filter |
+| Second user | Use a private window to sign in as `bob@vanderbilt.edu` and refresh | Shared data across accounts |
 
-- iOS simulator: `http://127.0.0.1:54321`.
-- Android emulator: `http://10.0.2.2:54321`.
-- Physical device: `http://YOUR_COMPUTER_LAN_IP:54321`; use the same Wi-Fi and allow
-  access through your firewall. All local Supabase services are development only.
+Describe it as a Sprint 2 MVP. Do not present Friends, sample menu data, or phone
+camera behavior as completed features. Test fixtures may appear in the feed from
+previous automated runs. Real food photos make the demo clearer than tiny fixtures.
 
-Then run `npm start`. Use a compatible Expo Go installation or an Expo development
-build. Restart Expo after changing environment variables. The app supports mobile;
-web is not part of Sprint 2 acceptance.
-
-Local tools:
-
-- Supabase Studio: http://127.0.0.1:54323
-- Captured email inbox: http://127.0.0.1:54324
-- API: http://127.0.0.1:54321
-
-Use any test address ending in `@vanderbilt.edu` locally. The code appears in the
-captured inbox; local Supabase does not send real email. Request a code, enter it,
-and choose your display name. Repeat on another device or sign out and use a
-second address. Templates in `supabase/templates/code.html` show the code for both
-new-account confirmation and returning-user login.
-
-After editing auth configuration/templates, run `npx --yes supabase stop` and
-`npx --yes supabase start` from the root. Stopping preserves local database data.
-To rebuild a disposable local database from migrations, run
-`npx --yes supabase db reset --local`; **this deletes local app data**.
-
-## Validate
+## Automated checks
 
 From `apps/mobile`:
 
 ```sh
 npm run lint
 npm run typecheck
-npx expo export --platform ios --platform android
+npx expo export --platform web --platform ios --platform android
 npm run test:backend
 ```
 
-The backend test requires `.env.local` pointing to `127.0.0.1` or `localhost` and
-running local Supabase. If using a physical-device URL, override it for the test:
+The backend test needs running local Supabase, its default captured-email service,
+and a configured `.env.local`. With a phone URL in that file, on macOS/Linux use:
 
 ```sh
 EXPO_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321 npm run test:backend
 ```
 
-It signs in two accounts using codes from local email, uploads a tiny fixture,
-creates a post, reads it and its photo as the other user, and checks denied actions.
-It leaves its test accounts and one demo post in the local database. It will refuse
-to run against a hosted URL. It never uses a service-role key.
+The test refuses hosted URLs, uses no service-role key, and creates two accounts
+plus a demo post in your local database. It verifies OTP, profile creation,
+uploads, cross-user reads, sign-out, and rejected unauthorized operations.
+It leaves its accounts and post in place; it does not send real email.
 
-From the root, also run `npx --yes supabase test db` for membership/permission
-checks (the SQL test rolls back its fixtures).
+From the repository root:
 
-Manual sprint acceptance:
+```sh
+npx --yes supabase test db
+```
 
-1. Reject a non-Vanderbilt email. A Vanderbilt account needs a valid email code.
-2. Create a display name; close/reopen the app and confirm the session persists.
-3. Select or take a photo, select a hall, and publish with an optional caption.
-4. Sign in as another user and pull to refresh. Confirm the photo, author, hall,
-   caption, and timestamp appear.
-5. Deny camera permission and confirm the library option still works.
-6. Disconnect networking while posting. Confirm an error appears and the draft
-   remains available for retry; retrying the same submission does not duplicate it.
-7. Sign out and confirm the feed is no longer accessible.
-8. With more than 20 posts, use Load more meals and check ordering.
+The database suite checks verified membership, domain restrictions, and write
+permissions. Its fixture changes roll back. GitHub Actions currently runs
+`npm ci`, lint, and typecheck; it does not run Docker/backend tests or device tests.
 
-## Implementation notes
+## Manual acceptance
 
-- Migrations create `profiles`, `dining_halls`, `posts`, access policies, and a
-  private `food-photos` bucket limited to JPEGs up to 5 MB. Hall names are a starter
-  list, not live dining availability; adjust reference data through migrations.
-- Database rules check the current verified address in `auth.users`, not mutable
-  metadata. A trigger rejects non-campus signups and email changes. All client
-  writes are constrained by row-level security and column grants.
-- Post IDs are generated once per draft. Storage paths are `user-id/post-id.jpg`.
-  Posts require an existing uploaded object; retries check whether the post already
-  committed. Failed inserts attempt cleanup when commit status is known. Published
-  photos cannot be deleted through the client. An app crash or lost connectivity
-  can leave an unused upload; periodic orphan cleanup is deferred.
-- Images use one-hour signed URLs. Pull to refresh renews URLs for the newest page.
-- `src/lib/database.types.ts` is generated from the migration. Regenerate from root:
-  `npx --yes supabase gen types typescript --local > apps/mobile/src/lib/database.types.ts`.
+Run against the browser, then repeat on a physical phone. Use
+[phone setup](local-development.md#physical-iphone-or-android-phone) first.
 
-## Later hosted setup
+- [ ] An outside-domain email is rejected; invalid/expired codes cannot sign in.
+- [ ] A valid code signs in; a new user can create a display name.
+- [ ] Closing and reopening the app restores the session.
+- [ ] Library photo selection works; on a phone, taking a camera photo works.
+- [ ] Camera denial leaves the library option usable; canceling selection is safe.
+- [ ] Posting requires a photo and hall; caption is optional and limited to 280 characters.
+- [ ] A submitted post has the right photo, author, hall, caption, and timestamp.
+- [ ] A second account sees the post after refreshing.
+- [ ] Hall detail shows only that hall's posts; Account shows only your own posts.
+- [ ] Post detail opens, and tabs/back navigation work.
+- [ ] With more than 20 posts, Load more meals preserves order without duplicates.
+- [ ] A failed submission shows an error and permits retry without duplicating the post.
+- [ ] Sign-out removes access to protected screens, including when navigating back.
 
-Create a separate development Supabase project and apply migrations using the
-Supabase CLI (`supabase link`, then review and `supabase db push`). Reference dining
-halls are included in the migration, so hosted setup does not depend on a seed.
-Hosted Auth settings are not automatically copied from `config.toml`: enable email
-confirmation, set both Confirm signup and Magic Link templates to the contents of
-`supabase/templates/code.html`, and configure an SMTP provider for real recipients.
-Use the hosted project URL and publishable key in the app. Verify the same two-user
-flow before a sprint demo with real email. Deployment was not part of local setup.
+Drafts are held in memory, not persisted through app restarts. Browser device mode
+is not a substitute for the physical-phone checks.
 
-## Frontend integration
+## Validation status
 
-The `frontend-poc` tab layout, theme, cards, and UI components are integrated with
-Supabase. Feed, Dining, Post, and Account display live database data; post and
-dining detail pages also use Supabase. Friends is a coming-soon screen. Ratings,
-comments, mock menus, and meal filters are not exposed as working features.
-Email-code authentication replaces the prototype password/demo-account login.
-The original prototype remains in Git history (`origin/frontend-poc`).
+During Sprint 2 implementation and frontend integration, lint/typecheck,
+web/iOS/Android bundle exports, the two-user backend test, nine SQL permission
+tests, and Expo Doctor checks passed. These are historical results, not a
+promise that future changes pass; rerun relevant checks before merging changes.
 
-For browser testing on the backend computer, run from `apps/mobile`:
-`EXPO_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321 npm run web -- --clear`.
-Check all tabs, posting, post/hall links, reload/session restoration, and sign-out.
-The account tab lists only your posts; each hall page lists only that hall's posts.
+Physical iPhone testing confirmed backend reachability through the Mac's LAN
+address. Expo Go then required matching CLI/phone accounts; browser login was
+identified for Google-linked accounts. A complete native login/upload/session
+walkthrough has **not yet been confirmed**. Hosted deployment and actual email
+delivery have also not been verified.
+
+## Before sharing changes
+
+Create a descriptive feature branch for new work. Inspect `git status`, the staged
+diff, and `git diff --cached --check`. Include migrations, generated types, tests,
+and the npm lockfile when relevant. Do not commit `.env.local`, credentials,
+`node_modules`, or build output.
+
+Resolve merge markers before starting a demo. After branch changes affecting
+routing, import aliases, dependencies, or app configuration, install dependencies
+as needed and restart Expo with `--clear`. Push your feature branch and open a PR;
+record the tests actually run and any outstanding manual checks in the description.
