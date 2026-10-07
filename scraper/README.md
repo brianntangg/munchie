@@ -24,12 +24,12 @@ need network access to obtain a matching browser driver; see the
 From the repository root:
 
 ```sh
-cd Scripts
+cd scraper
 python netnutrition_scraper.py
 ```
 
 The script writes `vanderbilt_all_menus.json` in the **current working directory**
-and overwrites it as results accumulate. Running in `Scripts` replaces the tracked
+and overwrites it as results accumulate. Running in `scraper` replaces the tracked
 snapshot, so inspect the diff before committing. To keep that snapshot intact,
 run the script by absolute path from a separate output directory instead.
 
@@ -45,5 +45,4 @@ continues, so an output file may be partial. Check console errors as well as the
 file. Changes to the external site's selectors or handlers may require repairs.
 The script starts Chrome and runs at module load; do not import it as a library.
 
-The documentation/comment cleanup did not rerun the scraper against the live site.
 Its output still needs a mapping/import pipeline before it can power the app.

@@ -1,18 +1,8 @@
-# Sprint 2 demo and testing
-
-## Scope
-
-Two campus users can verify their email, choose display names, share dining
-photos, and view each other's posts. Feed, Dining, Post, Account, and detail
-screens use Supabase data. Friends is explicitly marked coming soon.
-
-Later work: ratings, likes, comments, following, meal posting windows, automatic
-feed updates, editing/deleting posts, profile editing, moderation, orphan-upload
-cleanup, and menu integration. The standalone scraper is not connected to the
-Dining tab. Posting is currently available at any time.
+# Demo and testing
 
 Start with [local setup](local-development.md). For real mailbox delivery, see
 [email setup](email-delivery.md); local codes appear only in the captured inbox.
+For what is built and what is planned, see the [product vision](product-vision.md).
 
 ## Browser demo (about three minutes)
 
@@ -30,9 +20,9 @@ tab. Start the web app and enable Chrome's
 | Account | Show your name and posts | Current user's profile and author filter |
 | Second user | Use a private window to sign in as `bob@vanderbilt.edu` and refresh | Shared data across accounts |
 
-Describe it as a Sprint 2 MVP. Do not present Friends, sample menu data, or phone
-camera behavior as completed features. Test fixtures may appear in the feed from
-previous automated runs. Real food photos make the demo clearer than tiny fixtures.
+Do not present Friends, sample menu data, or phone camera behavior as completed
+features. Test fixtures may appear in the feed from previous automated runs.
+Real food photos make the demo clearer than tiny fixtures.
 
 ## Automated checks
 
@@ -53,9 +43,15 @@ EXPO_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321 npm run test:backend
 ```
 
 The test refuses hosted URLs, uses no service-role key, and creates two accounts
-plus a demo post in your local database. It verifies OTP, profile creation,
+plus three posts in your local database. It verifies OTP, profile creation,
 uploads, cross-user reads, sign-out, and rejected unauthorized operations.
-It leaves its accounts and post in place; it does not send real email.
+It also checks the actual product model: display-name and caption boundaries,
+required uploaded photos, valid hall references, matching photo paths, default
+captions and timestamps, author/hall filters, joined detail data, and rejected
+post edits/deletes. These checks use real local database and storage services.
+They test the backend contract, not the React UI or the app's publishing/retry
+and pagination functions.
+It leaves its accounts and three posts in place; it does not send real email.
 
 From the repository root:
 
@@ -64,8 +60,8 @@ npx --yes supabase test db
 ```
 
 The database suite checks verified membership, domain restrictions, and write
-permissions. Its fixture changes roll back. GitHub Actions currently runs
-`npm ci`, lint, and typecheck; it does not run Docker/backend tests or device tests.
+permissions. Its fixture changes roll back. See
+[`.github/workflows/ci.yml`](../.github/workflows/ci.yml) for the checks CI runs.
 
 ## Manual acceptance
 
@@ -89,18 +85,13 @@ Run against the browser, then repeat on a physical phone. Use
 Drafts are held in memory, not persisted through app restarts. Browser device mode
 is not a substitute for the physical-phone checks.
 
-## Validation status
+## Known gaps
 
-During Sprint 2 implementation and frontend integration, lint/typecheck,
-web/iOS/Android bundle exports, the two-user backend test, nine SQL permission
-tests, and Expo Doctor checks passed. These are historical results, not a
-promise that future changes pass; rerun relevant checks before merging changes.
-
-Physical iPhone testing confirmed backend reachability through the Mac's LAN
-address. Expo Go then required matching CLI/phone accounts; browser login was
-identified for Google-linked accounts. A complete native login/upload/session
-walkthrough has **not yet been confirmed**. Hosted deployment and actual email
-delivery have also not been verified.
+- A complete native login, upload, and session walkthrough on a physical phone has
+  not been confirmed. Bundle exports do not verify camera permissions or the phone flow.
+- Expo Go must be signed in to the same account as the Expo CLI; Google-linked
+  accounts may need browser login.
+- Hosted deployment and real email delivery have not been verified.
 
 ## Before sharing changes
 

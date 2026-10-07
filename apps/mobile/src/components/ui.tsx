@@ -5,9 +5,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
-  type TextInputProps,
   type ViewStyle,
 } from 'react-native';
 import { SafeAreaView, type Edge } from 'react-native-safe-area-context';
@@ -70,20 +68,6 @@ export function Button({
   );
 }
 
-export function TextField({ label, error, ...props }: TextInputProps & { label: string; error?: string | null }) {
-  return (
-    <View style={{ gap: spacing.xs }}>
-      <Text style={styles.fieldLabel}>{label}</Text>
-      <TextInput
-        placeholderTextColor={colors.textMuted}
-        style={[styles.input, error ? { borderColor: colors.danger } : null]}
-        {...props}
-      />
-      {error ? <Text style={{ color: colors.danger, fontSize: 13 }}>{error}</Text> : null}
-    </View>
-  );
-}
-
 export function Banner({ message, tone = 'error' }: { message: string | null; tone?: 'error' | 'success' | 'info' }) {
   if (!message) return null;
   const palette = {
@@ -103,29 +87,6 @@ export function LoadingSpinner({ label }: { label?: string }) {
     <View style={{ alignItems: 'center', padding: spacing.xl, gap: spacing.sm }}>
       <ActivityIndicator color={colors.primary} />
       {label ? <Text style={type.caption}>{label}</Text> : null}
-    </View>
-  );
-}
-
-export function Chip({ label, selected, onPress }: { label: string; selected?: boolean; onPress?: () => void }) {
-  return (
-    <Pressable
-      onPress={onPress}
-      style={[styles.chip, selected && { backgroundColor: colors.primary, borderColor: colors.primary }]}
-    >
-      <Text style={{ color: selected ? colors.onPrimary : colors.text, fontSize: 14 }}>{label}</Text>
-    </Pressable>
-  );
-}
-
-export function Stars({ value, size = 14, onChange }: { value: number; size?: number; onChange?: (v: number) => void }) {
-  return (
-    <View style={{ flexDirection: 'row', gap: 2 }}>
-      {[1, 2, 3, 4, 5].map((n) => (
-        <Pressable key={n} disabled={!onChange} onPress={() => onChange?.(n)} hitSlop={4}>
-          <Text style={{ fontSize: size, color: n <= Math.round(value) ? colors.gold : colors.border }}>★</Text>
-        </Pressable>
-      ))}
     </View>
   );
 }
@@ -172,26 +133,7 @@ const styles = StyleSheet.create({
   button_ghost: { backgroundColor: 'transparent' },
   button_danger: { backgroundColor: colors.dangerSoft },
   buttonLabel: { fontSize: 16, fontWeight: '600' },
-  fieldLabel: { fontSize: 14, fontWeight: '500', color: colors.text },
-  input: {
-    minHeight: 48,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.md,
-    paddingHorizontal: spacing.md,
-    backgroundColor: colors.surface,
-    fontSize: 16,
-    color: colors.text,
-  },
   banner: { padding: spacing.md, borderRadius: radius.md },
-  chip: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-  },
   card: {
     backgroundColor: colors.surface,
     borderRadius: radius.lg,

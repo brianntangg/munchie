@@ -22,11 +22,6 @@ to `src/` in `tsconfig.json`; restart Metro after changing aliases or entry poin
 | `lib/supabase.ts` | Client configuration and persistent session storage |
 | `lib/posts.ts` | Joined post queries, signed photo URLs, upload/insert workflow |
 | `lib/database.types.ts` | Generated database types; regenerate after schema changes |
-| `data/mock.ts` | Unused prototype fixtures, not the source for current screens |
-
-The frontend prototype's tab layout and visual components were integrated with
-the Supabase MVP. Its mock password login, fixed verification code, sample menus,
-and in-memory social actions are not active app features.
 
 ## Authentication and data flow
 

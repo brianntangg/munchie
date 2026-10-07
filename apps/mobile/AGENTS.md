@@ -44,4 +44,4 @@ Docs: https://docs.expo.dev/eas/index.md
 
 - Start with `../../docs/local-development.md` for environment setup and device troubleshooting.
 - See `../../docs/architecture.md` for routes, Supabase policies, and migration workflow.
-- Use `../../docs/sprint-2.md` for test commands and acceptance criteria. Do not describe bundle exports as successful physical-device testing.
+- Use `../../docs/testing.md` for test commands and acceptance criteria. Do not describe bundle exports as successful physical-device testing.

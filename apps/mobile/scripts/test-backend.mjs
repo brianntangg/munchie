@@ -2,6 +2,7 @@
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { createClient } from '@supabase/supabase-js';
+import { testProductModel } from './test-product-model.mjs';
 const url = process.env.EXPO_PUBLIC_SUPABASE_URL;
 const key = process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 assert.ok(url && key, 'Load apps/mobile/.env.local first');
@@ -10,7 +11,7 @@ const client = () => createClient(url, key, { auth: { persistSession: false, aut
 const run = randomUUID().slice(0, 8);
 async function signIn(label) {
   const api = client();
-  const email = `sprint2-${run}-${label}@vanderbilt.edu`;
+  const email = `test-${run}-${label}@vanderbilt.edu`;
   const { error } = await api.auth.signInWithOtp({ email });
   assert.ifError(error);
   let code;
@@ -30,11 +31,11 @@ async function signIn(label) {
   assert.ifError(verified.error);
   assert.ok(verified.data.session);
   const id = verified.data.user.id;
-  assert.ifError((await api.from('profiles').upsert({ id, display_name: `Sprint 2 ${label}` })).error);
-  assert.ifError((await api.from('profiles').upsert({ id, display_name: `Sprint 2 ${label}` })).error);
+  assert.ifError((await api.from('profiles').upsert({ id, display_name: `Test ${label}` })).error);
+  assert.ifError((await api.from('profiles').upsert({ id, display_name: `Test ${label}` })).error);
   return { api, id };
 }
-const outsider = await client().auth.signInWithOtp({ email: `sprint2-${run}@example.com` });
+const outsider = await client().auth.signInWithOtp({ email: `test-${run}@example.com` });
 assert.ok(outsider.error, 'Non-Vanderbilt signup is denied');
 const anonymous = client();
 assert.ok((await anonymous.from('posts').select('*')).error, 'Anonymous feed reads are denied');
@@ -49,7 +50,7 @@ const jpeg = Buffer.from('/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAP////////////////////
 assert.ok((await bob.api.storage.from('food-photos').upload(path, jpeg, { contentType: 'image/jpeg' })).error, 'Cannot upload into another user folder');
 assert.ok((await alice.api.storage.from('food-photos').upload(`${alice.id}/${randomUUID()}.jpg`, Buffer.from('text'), { contentType: 'text/plain' })).error, 'Non-images rejected');
 assert.ifError((await alice.api.storage.from('food-photos').upload(path, jpeg, { contentType: 'image/jpeg' })).error);
-const post = { id: postId, author_id: alice.id, dining_hall_id: halls[0].id, photo_path: path, caption: 'Sprint 2 integration test' };
+const post = { id: postId, author_id: alice.id, dining_hall_id: halls[0].id, photo_path: path, caption: 'Integration test' };
 assert.ok((await bob.api.from('posts').insert(post)).error, 'Cannot impersonate another author');
 assert.ok((await alice.api.from('posts').insert({ ...post, created_at: '2030-01-01T00:00:00Z' })).error, 'Cannot forge feed timestamps');
 assert.ok((await alice.api.from('posts').insert({ ...post, caption: 'x'.repeat(281) })).error, 'Caption limit enforced');
@@ -67,7 +68,8 @@ const unused = `${alice.id}/${randomUUID()}.jpg`;
 assert.ifError((await alice.api.storage.from('food-photos').upload(unused, jpeg, { contentType: 'image/jpeg' })).error);
 assert.ifError((await alice.api.storage.from('food-photos').remove([unused])).error);
 assert.ok((await alice.api.storage.from('food-photos').download(unused)).error, 'Unused upload can be cleaned up');
+await testProductModel({ alice, bob, halls, jpeg });
 assert.ifError((await alice.api.auth.signOut({ scope: 'local' })).error);
 assert.ok((await alice.api.from('posts').select('*')).error, 'Sign-out removes access');
 console.log('PASS: OTP signup/login, profile, hall list, upload, post, second-user feed/photo, sign-out, and authorization checks.');
-console.log(`Demo fixture: ${postId}. Test accounts and this post remain in the local database.`);
+console.log(`Demo fixture: ${postId}. Test accounts and three posts remain in the local database.`);

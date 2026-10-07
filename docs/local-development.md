@@ -173,7 +173,7 @@ The project uses Expo SDK 57. If Expo Go reports an incompatible SDK or a missin
 native module, verify the installed app supports this project; use a compatible
 Expo Go or a development build. Do not change SDK versions just to silence an
 error. See [Expo development builds](https://docs.expo.dev/develop/development-builds/introduction/).
-Native end-to-end testing is still pending; follow the [phone checklist](sprint-2.md#manual-acceptance).
+Native end-to-end testing is still pending; follow the [phone checklist](testing.md#manual-acceptance).
 
 ## Simulators and emulators
 

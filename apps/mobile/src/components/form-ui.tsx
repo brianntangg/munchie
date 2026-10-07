@@ -22,11 +22,7 @@ export const styles = StyleSheet.create({
   label: { fontSize: 14, fontWeight: '600', color: colors.ink },
   field: { gap: 8 },
   input: { borderWidth: 1, borderColor: colors.line, backgroundColor: '#FFF', borderRadius: 12, padding: 14, fontSize: 16, color: colors.ink },
-  button: { backgroundColor: colors.gold, borderRadius: 12, padding: 15, alignItems: 'center', minHeight: 48 },
-  secondary: { backgroundColor: 'transparent', borderWidth: 1, borderColor: colors.line },
-  buttonText: { color: colors.ink, fontSize: 16, fontWeight: '700' },
   error: { color: colors.error, fontSize: 14, lineHeight: 21 },
-  card: { borderRadius: 16, borderWidth: 1, borderColor: colors.line, backgroundColor: '#FFF', overflow: 'hidden', marginBottom: 18 },
   photo: { width: '100%', aspectRatio: 4 / 3, backgroundColor: colors.line },
   row: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
 });

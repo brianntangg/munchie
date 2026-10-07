@@ -1,4 +1,4 @@
--- Sprint 2: verified campus members, dining halls, and photo posts.
+-- Initial schema: verified campus members, dining halls, and photo posts.
 create schema if not exists private;
 revoke all on schema private from public;
 grant usage on schema private to authenticated;
