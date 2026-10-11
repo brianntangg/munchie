@@ -1,7 +1,9 @@
 name: Mobile CI
 
 on:
+  # Pull requests run CI once; pushes run it only after merging to main.
   push:
+    branches: [main]
   pull_request:
   workflow_dispatch:
 
