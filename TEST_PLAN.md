@@ -98,15 +98,17 @@ Each step is one small PR. Check it off when merged.
 
 | Partition | Expected | Representative | Boundary values | Test written? |
 | --- | --- | --- | --- | --- |
-| Valid campus address | Accept | `alice@vanderbilt.edu` | 1-char local part `a@vanderbilt.edu` | Representative only |
-| Different letter case | Accept | `Alice@VANDERBILT.EDU` | `a@Vanderbilt.Edu` | N |
-| Other domain | Reject | `outsider@example.com` | `a@vanderbilt.ed` | Representative only |
-| Subdomain | Reject | `a@mail.vanderbilt.edu` | `a@.vanderbilt.edu` | N |
-| Look-alike suffix | Reject | `a@vanderbilt.edu.evil.com` | `a@vanderbilt.educ`, `a@vanderbiltXedu` (unescaped dot) | N |
-| Empty local part | Reject | `@vanderbilt.edu` | — | N |
-| Whitespace | Reject | `a b@vanderbilt.edu` | `a@vanderbilt.edu` followed by a trailing space | N |
-| Multiple `@` | Reject | `a@b@vanderbilt.edu` | — | N |
+| Valid campus address | Accept | `alice@vanderbilt.edu` | 1-char local part `a@vanderbilt.edu` | Y |
+| Different letter case | Accept | `Alice@VANDERBILT.EDU` | — | Y |
+| Other domain | Reject | `outsider@example.com` | `a@vanderbilt.ed` | Y |
+| Subdomain | Reject | `a@mail.vanderbilt.edu` | `a@.vanderbilt.edu` | Y |
+| Look-alike suffix | Reject | `a@vanderbilt.edu.evil.com` | `a@vanderbilt.educ`, `a@vanderbiltXedu` (unescaped dot) | Y |
+| Empty local part | Reject | `@vanderbilt.edu` | — | Y |
+| Whitespace | Reject | `a b@vanderbilt.edu` | `a@vanderbilt.edu` followed by a trailing space | Y |
+| Multiple `@` | Reject | `a@b@vanderbilt.edu` | — | Y |
 | Email changed to outside domain | Reject | update to `outside@example.com` | — | Y (existing) |
+
+Tests: [campus_email.test.sql](supabase/tests/database/campus_email.test.sql) (12 cases) and [membership.test.sql](supabase/tests/database/membership.test.sql) (outside domain, email change).
 
 Second candidate for a unit-level EP/BVA: `publishPost` photo size, where 5,242,880 bytes is accepted and 5,242,881 is rejected (matches the storage bucket limit).
 
