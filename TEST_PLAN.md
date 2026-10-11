@@ -11,10 +11,13 @@
 
 ## Targets
 
-- Branch coverage >= 70% on `apps/mobile/src/lib/**` (above the Sprint 3 requirement of 60%); >= 85% on `src/lib/posts.ts` (core module).
+- **Enforced in CI:** branch and line coverage >= 50% on `apps/mobile/src/lib/**` (Sprint 3 plan). A pull request below the threshold fails CI.
+- **Goal:** >= 80% on `src/lib/posts.ts` (core module) and on each new logic file in `src/lib`.
+- Review the threshold at the end of Sprint 3 and raise it to the coverage the team actually reached.
 - Excluded from the coverage denominator: generated `database.types.ts`, `auth.tsx` (a React provider; see Not testing), and screens/components in `src/app` and `src/components`.
 - **Rule that keeps the target honest:** new logic goes into `src/lib` as plain functions that screens call. That includes rating validation, the paging cursor and page merge, auto-refresh timing, and scraper parsing. Screens stay thin, and the logic that can break is the logic we measure.
-- CI runs unit tests with coverage on every PR; pgTAP tests join CI once the Supabase CLI job is added.
+- Tools: Jest (`jest-expo` preset) for unit tests and coverage; pgTAP and the backend tests for integration.
+- CI runs unit tests with coverage on every PR; integration tests join CI in Week 2 (Supabase CLI job).
 
 ## Priorities (from risk map)
 
@@ -24,17 +27,22 @@ Likelihood: complex logic, external services, new code score higher. Impact: dat
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | Create food post with photo (Story 4) | 3 | 3 | **9** | Y | Y (exists; extend to run `posts.ts`) | Y | Brian Tang |
 | Sign in with Vanderbilt email code (Stories 1–3) | 2 | 3 | **6** | – | Y (extend with EP/BVA) | Y | Brian Tang |
-| Submit a rating (Story 7, new) | 3 | 2 | **6** | Y (when built) | Y (when built) | – | David Lee |
-| Feed paging and auto-refresh (Stories 5–6) | 3 | 2 | **6** | Y (after extracting logic from Feed.tsx; auto-refresh when built) | Y | – | Brian Tang |
-| Dining menu info from scraper (Story 15) | 3 | 2 | **6** | Y (after parser refactor) | Y (saved HTML, no live site) | – | David Lee |
+| Submit a rating (Story 7, new) | 3 | 2 | **6** | Y (when built) | Y (when built) | – | David Lee (backend), Justin Kong (UI) |
+| Feed paging and auto-refresh (Stories 5–6) | 3 | 2 | **6** | Y (auto-refresh when built) | Y | – | Tevin Park |
+| Dining menu info from scraper (Story 15) | 3 | 2 | **6** | Y (after parser refactor) | Y (saved HTML, no live site) | – | Tevin Park |
+| Dining hall open/closed status (new) | 2 | 2 | 4 | Y | – | – | Justin Kong |
 | Food by dining location (Story 14) | 1 | 2 | 2 | Y | Y (exists) | – | David Lee |
 
+Owners make sure their feature is tested; feature authors write the tests for their own code. The Test Lead keeps the plan current and the CI that runs every test.
+
 Why these scores:
+
 - **Posting (9):** the most complex code we have (5 MB limit, retry without duplicates, re-upload after a 409, photo cleanup), and it is the core journey. Bugs here lose users' photos or duplicate posts.
 - **Sign-in (6):** logic is small and mostly enforced by the database, but a bug either locks students out or lets non-Vanderbilt users read private content.
 - **Rating (6):** new code with input rules (score range, one rating per user per dish). Wrong scores corrupt averages, but nothing is lost permanently.
 - **Paging and auto-refresh (6):** the cursor is a hand-built filter string with tie-breaking on `created_at`, and pages are appended in [Feed.tsx](apps/mobile/src/components/Feed.tsx) without deduplication; auto-refresh is not built yet. Bugs show duplicate or missing posts.
 - **Scraper (6):** depends on a third-party site's HTML, which can change without warning. Wrong menus mislead students, but menus are informational (see non-goals in [product-vision.md](docs/product-vision.md)).
+- **Open/closed status (4):** time logic with edge cases (hours that cross midnight, the moment of opening and closing). A wrong answer sends students to a closed hall, but nothing is lost. Pure functions make it easy to unit-test.
 - **Food by location (2):** a single equality filter that integration tests already cover.
 
 **Dependency:** rating a dish (Story 7) needs a menu-items table, which the scraper (Story 15) fills. Build and test Story 15's menu data first; until then, rating tests use seeded menu items.
@@ -67,27 +75,36 @@ Manual for now (checklist in [testing.md](docs/testing.md)); run in browser and 
 ## How to run
 
 ```sh
-# Unit (apps/mobile, after Vitest is added)
+# Unit (apps/mobile; added with the Jest setup PR)
 npm test
 # Integration (local Supabase must be running: npx supabase start)
 npx supabase test db                 # from repo root
 npm run test:backend                 # from apps/mobile
 # Coverage
-npm run test:coverage                # vitest run --coverage, scoped to src/lib
+npm test -- --coverage               # Jest coverage, scoped to src/lib
 ```
 
 ## Work order
 
-Each step is one small PR. Check it off when merged.
+Each item is one small pull request. Owner: Brian Tang unless noted.
 
-- [ ] 1. Campus email boundary tests in `supabase/tests/database/campus_email.test.sql` (pgTAP, no new tooling). Update the Worksheet 3 table below.
-- [ ] 2. Add `vitest` and `@vitest/coverage-v8` to `apps/mobile` with `test` and `test:coverage` scripts; stub the Expo storage import in tests. Record the first real coverage number in Baseline.
-- [ ] 3. `publishPost` unit tests: 5 MB boundary, early return when the post exists, 409 re-upload, cleanup when the insert fails.
-- [ ] 4. Add the unit test step with coverage to [ci.yml](.github/workflows/ci.yml).
-- [ ] 5. Move the paging cursor and page merge out of Feed.tsx into `src/lib`, with unit tests for ties and duplicates.
-- [ ] 6. Run `posts.ts` against local Supabase as an integration test; optionally move the backend script into Vitest for per-test counts.
-- [ ] 7. Add a Supabase CLI job to CI for pgTAP.
-- [ ] 8. As Stories 15 and 7 land: scraper parser tests on saved HTML, then rating validation and constraint tests.
+### Week 1 (Oct 13)
+
+1. Pull request workflow: PR template, CODEOWNERS, CI badge.
+2. Align this test plan with the Sprint 3 plan.
+3. Campus email boundary tests (pgTAP); update the Worksheet 3 table.
+4. Jest setup with `publishPost` unit tests, run in CI on every pull request.
+
+### Week 2 (Oct 20)
+
+1. Integration job in CI: start local Supabase, run pgTAP and backend tests.
+2. Split the backend integration script into individually reported Jest tests (at least six integration tests).
+3. Enforce the 50% coverage threshold in CI.
+4. Publish a web build artifact on every merge to `main`.
+
+### Feature owners, as their stories land
+
+Open/closed unit tests (Justin), rating constraint and failure-path tests (David), rating UI integration test (Justin), feed refresh tests and scraper parser tests on saved HTML (Tevin), hall-filter integration test (David).
 
 ---
 
