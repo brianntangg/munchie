@@ -1,5 +1,7 @@
 # Munchie
 
+[![Mobile CI](https://github.com/brianntangg/munchie/actions/workflows/ci.yml/badge.svg)](https://github.com/brianntangg/munchie/actions/workflows/ci.yml)
+
 Munchie lets Vanderbilt students share campus dining photos and discover what
 others are eating. It is an Expo/React Native app backed by Supabase
 authentication, PostgreSQL, and private image storage.
@@ -55,6 +57,20 @@ through Git. Use `npx expo install` from `apps/mobile` when adding app dependenc
 Browser demos and native bundle builds are available. Physical-phone testing is
 still in progress; a successful bundle build does not verify camera permissions
 or the complete phone flow. See the [known gaps](docs/testing.md#known-gaps).
+
+## Contributing
+
+`main` is protected; all changes go through a pull request.
+
+1. Create a branch from `main` for one feature or fix.
+2. Open a pull request and fill in the template.
+3. Enable **Auto-merge (squash)** on your own pull request.
+4. A pull request merges after one teammate approves and CI passes. Reviewers
+   approve but do not merge someone else's pull request; auto-merge does it.
+5. If `main` changes while your pull request is open, select **Update branch**.
+
+Every pull request automatically requests review from the team
+(see [CODEOWNERS](.github/CODEOWNERS)).
 
 Developed for Vanderbilt University's Principles of Software Engineering course.
 Team: Brian Tang, David Lee, Justin Kong, and Tevin Park.
