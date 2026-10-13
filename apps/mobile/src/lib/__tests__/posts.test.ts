@@ -1,18 +1,45 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
-import { publishPost } from '../posts';
+import { loadPost, loadPosts, PAGE_SIZE, publishPost } from '../posts';
 
 // Replace the Supabase client with a fake whose responses each test controls.
+// Query methods record their arguments in mockQueryCall and return the same chainable query;
+// awaiting a list query resolves to mockListResult().
 type AsyncCall = (...args: unknown[]) => Promise<unknown>;
+const mockQueryCall = jest.fn<(method: string, ...args: unknown[]) => void>();
+const mockListResult = jest.fn<AsyncCall>();
 const mockMaybeSingle = jest.fn<AsyncCall>();
 const mockInsert = jest.fn<AsyncCall>();
 const mockUpload = jest.fn<AsyncCall>();
 const mockRemove = jest.fn<AsyncCall>();
-jest.mock('../supabase', () => ({
-  supabase: {
-    from: () => ({ select: () => ({ eq: () => ({ maybeSingle: mockMaybeSingle }) }), insert: mockInsert }),
-    storage: { from: () => ({ upload: mockUpload, remove: mockRemove }) },
-  },
-}));
+const mockCreateSignedUrls = jest.fn<AsyncCall>();
+const mockCreateSignedUrl = jest.fn<AsyncCall>();
+jest.mock('../supabase', () => {
+  const query: Record<string, unknown> = {
+    maybeSingle: (...args: unknown[]) => mockMaybeSingle(...args),
+    insert: (...args: unknown[]) => mockInsert(...args),
+    then: (resolve: (value: unknown) => unknown, reject: (reason: unknown) => unknown) => mockListResult().then(resolve, reject),
+  };
+  for (const method of ['select', 'order', 'limit', 'eq', 'or']) {
+    query[method] = (...args: unknown[]) => {
+      mockQueryCall(method, ...args);
+      return query;
+    };
+  }
+  return {
+    supabase: {
+      from: () => query,
+      storage: {
+        from: () => ({
+          upload: (...args: unknown[]) => mockUpload(...args),
+          remove: (...args: unknown[]) => mockRemove(...args),
+          createSignedUrls: (...args: unknown[]) => mockCreateSignedUrls(...args),
+          createSignedUrl: (...args: unknown[]) => mockCreateSignedUrl(...args),
+        }),
+      },
+    },
+  };
+});
+const queryCalls = (method: string) => mockQueryCall.mock.calls.filter(([name]) => name === method).map(([, ...args]) => args);
 
 const MAX_BYTES = 5 * 1024 * 1024;
 const photo = (bytes: number) => btoa('\0'.repeat(bytes));
@@ -25,6 +52,9 @@ beforeEach(() => {
   mockUpload.mockResolvedValue({ error: null });
   mockInsert.mockResolvedValue({ error: null });
   mockRemove.mockResolvedValue({ error: null });
+  mockListResult.mockResolvedValue({ data: [], error: null });
+  mockCreateSignedUrls.mockResolvedValue({ data: [], error: null });
+  mockCreateSignedUrl.mockResolvedValue({ data: { signedUrl: 'https://photos/one' }, error: null });
 });
 
 describe('publishPost photo size', () => {
@@ -101,5 +131,87 @@ describe('publishPost failures', () => {
       .mockResolvedValueOnce({ data: null, error: { message: 'still offline' } });
     await expect(publishPost(post)).rejects.toBe(insertError);
     expect(mockRemove).not.toHaveBeenCalled();
+  });
+});
+
+const row = (id: string) => ({ id, photo_path: `user-1/${id}.jpg`, caption: '', profiles: { display_name: 'Alice' }, dining_halls: { name: 'Rand' } });
+
+describe('loadPosts filters', () => {
+  it('loads the newest page with no filters', async () => {
+    await loadPosts();
+    expect(queryCalls('order')).toEqual([['created_at', { ascending: false }], ['id', { ascending: false }]]);
+    expect(queryCalls('limit')).toEqual([[PAGE_SIZE]]);
+    expect(queryCalls('eq')).toEqual([]);
+    expect(queryCalls('or')).toEqual([]);
+  });
+
+  it('filters by dining hall', async () => {
+    await loadPosts(undefined, { hallId: 'hall-1' });
+    expect(queryCalls('eq')).toEqual([['dining_hall_id', 'hall-1']]);
+  });
+
+  it('filters by author', async () => {
+    await loadPosts(undefined, { authorId: 'user-1' });
+    expect(queryCalls('eq')).toEqual([['author_id', 'user-1']]);
+  });
+
+  it('continues after the cursor, breaking timestamp ties by id', async () => {
+    await loadPosts({ created_at: '2026-10-01T12:00:00Z', id: 'post-9' });
+    expect(queryCalls('or')).toEqual([['created_at.lt.2026-10-01T12:00:00Z,and(created_at.eq.2026-10-01T12:00:00Z,id.lt.post-9)']]);
+  });
+});
+
+describe('loadPosts results', () => {
+  it('returns an empty page without requesting photo links', async () => {
+    await expect(loadPosts()).resolves.toEqual([]);
+    expect(mockCreateSignedUrls).not.toHaveBeenCalled();
+  });
+
+  it('attaches a one-hour photo link to each post, or null when none is returned', async () => {
+    mockListResult.mockResolvedValue({ data: [row('a'), row('b'), row('c')], error: null });
+    mockCreateSignedUrls.mockResolvedValue({ data: [{ signedUrl: 'https://photos/a' }, { signedUrl: null }], error: null });
+    const posts = await loadPosts();
+    expect(mockCreateSignedUrls).toHaveBeenCalledWith(['user-1/a.jpg', 'user-1/b.jpg', 'user-1/c.jpg'], 3600);
+    expect(posts.map((p) => p.imageUrl)).toEqual(['https://photos/a', null, null]);
+  });
+
+  it('throws when the query fails', async () => {
+    const queryError = { message: 'permission denied' };
+    mockListResult.mockResolvedValue({ data: null, error: queryError });
+    await expect(loadPosts()).rejects.toBe(queryError);
+  });
+
+  it('throws when photo links cannot be created', async () => {
+    const urlError = { message: 'storage unavailable' };
+    mockListResult.mockResolvedValue({ data: [row('a')], error: null });
+    mockCreateSignedUrls.mockResolvedValue({ data: null, error: urlError });
+    await expect(loadPosts()).rejects.toBe(urlError);
+  });
+});
+
+describe('loadPost', () => {
+  it('returns null for a missing post without requesting a photo link', async () => {
+    await expect(loadPost('missing')).resolves.toBeNull();
+    expect(queryCalls('eq')).toEqual([['id', 'missing']]);
+    expect(mockCreateSignedUrl).not.toHaveBeenCalled();
+  });
+
+  it('returns the post with a one-hour photo link', async () => {
+    mockMaybeSingle.mockResolvedValue({ data: row('one'), error: null });
+    await expect(loadPost('one')).resolves.toEqual({ ...row('one'), imageUrl: 'https://photos/one' });
+    expect(mockCreateSignedUrl).toHaveBeenCalledWith('user-1/one.jpg', 3600);
+  });
+
+  it('throws when the query fails', async () => {
+    const queryError = { message: 'permission denied' };
+    mockMaybeSingle.mockResolvedValue({ data: null, error: queryError });
+    await expect(loadPost('one')).rejects.toBe(queryError);
+  });
+
+  it('throws when the photo link cannot be created', async () => {
+    const photoError = { message: 'storage unavailable' };
+    mockMaybeSingle.mockResolvedValue({ data: row('one'), error: null });
+    mockCreateSignedUrl.mockResolvedValue({ data: null, error: photoError });
+    await expect(loadPost('one')).rejects.toBe(photoError);
   });
 });
