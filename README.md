@@ -46,7 +46,7 @@ your computer instead of sending them to real mailboxes.
 | `apps/mobile/scripts/` | Local backend integration test |
 | `supabase/` | Local services, migrations, email templates, database tests |
 | `scraper/` | Standalone Python dining scraper and captured menu data |
-| `.github/workflows/ci.yml` | Mobile dependency installation, lint, and typecheck |
+| `.github/workflows/ci.yml` | Lint, typecheck, unit tests, and integration tests against local Supabase |
 
 ## Development
 
