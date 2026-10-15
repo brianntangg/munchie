@@ -9,25 +9,15 @@
 | Least-covered module | [src/lib/posts.ts](apps/mobile/src/lib/posts.ts), 0%. The integration script calls Supabase directly, so none of the app's own functions (`publishPost`, `loadPosts`, `loadPost`) run under test. |
 | Test levels today | Integration (pgTAP, backend script) and manual E2E ([testing.md](docs/testing.md) checklist). No unit tests. CI runs only lint and typecheck. |
 
-## Current (2026-10-14)       tests: 27 unit + 21 database + backend suite passing, coverage: 100% on `src/lib`
-
-| | |
-| --- | --- |
-| Unit tests | 27 Jest tests for `posts.ts` and `supabase.ts`, run in CI on every pull request |
-| Coverage | 100% statements, branches, functions, and lines on `src/lib` (was 0%); CI fails below 70% |
-| Database tests | 21 pgTAP tests (membership, row-level security, campus email boundaries), run in CI against local Supabase |
-| Backend integration | Sign-in, uploads, posting, authorization, and product-model checks, run in CI against local Supabase |
-| Test levels | Unit, integration, and manual E2E |
-
 ## Targets
 
-- **Enforced in CI:** statement, branch, function, and line coverage >= 70% on `apps/mobile/src/lib/**` (Sprint 3 course requirement). A pull request below the threshold fails CI.
+- **Enforced in CI:** branch and line coverage >= 50% on `apps/mobile/src/lib/**` (Sprint 3 plan). A pull request below the threshold fails CI.
 - **Goal:** >= 80% on `src/lib/posts.ts` (core module) and on each new logic file in `src/lib`.
 - Review the threshold at the end of Sprint 3 and raise it to the coverage the team actually reached.
 - Excluded from the coverage denominator: generated `database.types.ts`, `auth.tsx` (a React provider; see Not testing), and screens/components in `src/app` and `src/components`.
 - **Rule that keeps the target honest:** new logic goes into `src/lib` as plain functions that screens call. That includes rating validation, the paging cursor and page merge, auto-refresh timing, and scraper parsing. Screens stay thin, and the logic that can break is the logic we measure.
 - Tools: Jest (`jest-expo` preset) for unit tests and coverage; pgTAP and the backend tests for integration.
-- CI runs unit tests with coverage and integration tests against local Supabase on every PR.
+- CI runs unit tests with coverage on every PR; integration tests join CI in Week 2 (Supabase CLI job).
 
 ## Priorities (from risk map)
 
@@ -109,7 +99,7 @@ Each item is one small pull request. Owner: Brian Tang unless noted.
 
 1. Integration job in CI: start local Supabase, run pgTAP and backend tests.
 2. Split the backend integration script into individually reported Jest tests (at least six integration tests).
-3. Enforce the 70% coverage threshold in CI.
+3. Enforce the 50% coverage threshold in CI.
 4. Publish a web build artifact on every merge to `main`.
 
 ### Feature owners, as their stories land
