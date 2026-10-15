@@ -40,7 +40,7 @@
     "web": "expo start --web",
     "lint": "expo lint",
     "typecheck": "tsc --noEmit",
-    "test:backend": "node --env-file=.env.local scripts/test-backend.mjs",
+    "test:backend": "node --env-file=.env.local node_modules/jest/bin/jest.js --config jest.integration.config.js --runInBand",
     "test": "jest"
   },
   "private": true,
