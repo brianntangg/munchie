@@ -67,7 +67,7 @@ Status reflects the `main` branch. Update this table as features land.
 ## Quality bar
 
 - Every pull request runs lint, typecheck, unit tests, and integration tests
-  against a real Supabase database in CI, with at least 50% code coverage.
+  against a real Supabase database in CI, with at least 70% code coverage.
 - `main` is protected: changes merge through reviewed pull requests with passing checks.
 - Every merge to `main` publishes a build artifact.
 - Database permissions, not app navigation, enforce who can read and write data.
