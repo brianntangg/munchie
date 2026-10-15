@@ -11,7 +11,7 @@
 
 ## Targets
 
-- **Enforced in CI:** branch and line coverage >= 50% on `apps/mobile/src/lib/**` (Sprint 3 plan). A pull request below the threshold fails CI.
+- **Enforced in CI:** statement, branch, function, and line coverage >= 70% on `apps/mobile/src/lib/**` (Sprint 3 course requirement). A pull request below the threshold fails CI.
 - **Goal:** >= 80% on `src/lib/posts.ts` (core module) and on each new logic file in `src/lib`.
 - Review the threshold at the end of Sprint 3 and raise it to the coverage the team actually reached.
 - Excluded from the coverage denominator: generated `database.types.ts`, `auth.tsx` (a React provider; see Not testing), and screens/components in `src/app` and `src/components`.
@@ -99,7 +99,7 @@ Each item is one small pull request. Owner: Brian Tang unless noted.
 
 1. Integration job in CI: start local Supabase, run pgTAP and backend tests.
 2. Split the backend integration script into individually reported Jest tests (at least six integration tests).
-3. Enforce the 50% coverage threshold in CI.
+3. Enforce the 70% coverage threshold in CI.
 4. Publish a web build artifact on every merge to `main`.
 
 ### Feature owners, as their stories land
