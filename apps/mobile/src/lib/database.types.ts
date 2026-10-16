@@ -93,6 +93,31 @@ isOneToOne: false
                   Relationships: [
 
                   ]
+                },"ratings": {
+                  Row: {
+                    "author_id": string,"created_at": string,"id": string,"menu_item_id": string,"score": number,"updated_at": string
+                  }
+                  Insert: {
+                    "author_id"?: string,"created_at"?: string,"id"?: string,"menu_item_id": string,"score": number,"updated_at"?: string
+                  }
+                  Update: {
+                    "author_id"?: string,"created_at"?: string,"id"?: string,"menu_item_id"?: string,"score"?: number,"updated_at"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "ratings_author_id_fkey"
+      columns: ["author_id"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "ratings_menu_item_id_fkey"
+      columns: ["menu_item_id"]
+isOneToOne: false
+      referencedRelation: "menu_items"
+      referencedColumns: ["id"]
+    }
+                  ]
                 }
           }
           Views: {
