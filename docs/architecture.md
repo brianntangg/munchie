@@ -43,7 +43,7 @@ protection is a UI convenience, not a substitute for database permissions.
 | Resource | Data and access |
 | --- | --- |
 | `profiles` | Auth user ID and display name (1–40 trimmed characters); members read, users create/update their own profile |
-| `dining_halls` | Seeded ID/name reference list; members read; app clients cannot write |
+| `dining_halls` | Seeded ID/name reference list plus weekly `hours` (scraped from NetNutrition, loaded by migration); members read; app clients cannot write |
 | `menu_items` | Dish name and optional station/category per dining hall, one row per dish per hall; members read; app clients cannot write (the menu importer loads them) |
 | `posts` | Author, hall, photo path, caption (up to 280 characters), server timestamp; members read and create their own posts |
 | `food-photos` bucket | Private JPEGs up to 5 MB; members read; uploads must be in the current user's folder |
@@ -54,7 +54,7 @@ owner's unused uploads, but protect objects already referenced by a post.
 
 Dining halls are inserted by the migration so local and hosted databases agree.
 `supabase/seed.sql` adds demo menu items for local development and tests; it does
-not create users or posts, and hosted projects do not run it. Hall names are reference data, not a live operating-hours feed.
+not create users or posts, and hosted projects do not run it. Hall names and hours are reference data loaded by migrations, not a live feed; refresh hours with the scraper's `--hours-only` and `--export-sql` modes.
 
 ## Posting and reading
 
