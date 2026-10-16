@@ -1,5 +1,7 @@
 import json
+import os
 import re
+import sys
 import time
 
 from selenium import webdriver
@@ -9,9 +11,22 @@ from selenium.webdriver.support import expected_conditions as EC
 
 
 URL = "https://netnutrition.cbord.com/nn-prod/vucampusdining#"
+# {"hours": {location: weekly hours}, "menus": [menu records]}. Hours cover every location,
+# including ones with no menus published right now.
+OUTPUT_FILE = "vanderbilt_all_menus.json"
 
-driver = webdriver.Chrome()
-wait = WebDriverWait(driver, 10)
+# Scraper location name (NetNutrition) -> dining_halls.id, as inserted by the sprint 2 migration.
+HALL_IDS = {
+    "Rand Dining Center": "10000000-0000-4000-8000-000000000001",
+    "The Commons Dining Center": "10000000-0000-4000-8000-000000000002",
+    "E. Bronson Ingram Dining Center": "10000000-0000-4000-8000-000000000003",
+    "Rothschild Dining Center - Contains Peanuts & Tree Nuts": "10000000-0000-4000-8000-000000000004",
+    "Zeppos Dining": "10000000-0000-4000-8000-000000000005",
+}
+
+# Created by main() so importing this file (or exporting SQL) does not start Chrome.
+driver = None
+wait = None
 
 
 def get_locations():
@@ -319,20 +334,175 @@ def scrape_items():
     return items
 
 
-def save_data(data):
+DAYS = [
+    "Sunday", "Monday", "Tuesday", "Wednesday",
+    "Thursday", "Friday", "Saturday"
+]
+
+
+def to_24h(text):
+
+    match = re.fullmatch(
+        r"\s*(\d{1,2}):(\d{2})\s*([AP]M)\s*",
+        text,
+        re.IGNORECASE
+    )
+
+    if not match:
+        raise ValueError(f"Unrecognized time: {text!r}")
+
+    hour = int(match.group(1)) % 12
+    minute = int(match.group(2))
+
+    if match.group(3).upper() == "PM":
+        hour += 12
+
+    return f"{hour:02d}:{minute:02d}"
+
+
+def parse_hours(rows):
+
+    # rows are the cell texts of each table row: [day, open, close] or [day, "Closed"].
+    # A day can appear on several rows (split shifts) and rows are not sorted.
+    hours = {day: [] for day in DAYS}
+
+    for cells in rows:
+
+        if not cells or cells[0] not in hours:
+            continue
+
+        if len(cells) < 3:
+            continue
+
+        hours[cells[0]].append(
+            [to_24h(cells[1]), to_24h(cells[2])]
+        )
+
+    for shifts in hours.values():
+        shifts.sort()
+
+    return hours
+
+
+def get_hours(unit_id):
+
+    # Weekly hours of operation from the unit's modal, as {"Monday": [["07:00", "15:00"]], ...}.
+    # A close time at or before the open time means the shift ends after midnight.
+    # Returns None on failure so a missing modal does not stop menu scraping.
+    try:
+
+        driver.execute_script(
+            f"NetNutrition.UI.openHoursInModal({unit_id});"
+        )
+
+        table = wait.until(
+            EC.visibility_of_element_located(
+                (
+                    By.CSS_SELECTOR,
+                    "#cbo_nn_hoursOfOperationDialogInner table"
+                )
+            )
+        )
+
+        rows = [
+            [
+                cell.get_attribute("textContent").strip()
+                for cell in row.find_elements(By.TAG_NAME, "td")
+            ]
+            for row in table.find_elements(By.TAG_NAME, "tr")
+        ]
+
+        hours = parse_hours(rows)
+
+        driver.execute_script(
+            "$('#cbo_nn_hoursOfOperation').modal('hide');"
+        )
+
+        wait.until(
+            EC.invisibility_of_element_located(
+                (By.ID, "cbo_nn_hoursOfOperation")
+            )
+        )
+
+        return hours
+
+    except Exception as e:
+
+        print(f"    ERROR hours for unit {unit_id}: {e}")
+
+        return None
+
+
+def load_output():
+
+    # The saved menus and hours, so refreshing one does not discard the other.
+    try:
+        with open(OUTPUT_FILE, encoding="utf-8") as f:
+            saved = json.load(f)
+
+    except FileNotFoundError:
+        return [], {}
+
+    if isinstance(saved, dict):
+        return saved.get("menus", []), saved.get("hours", {})
+
+    # Older output was a bare list of menu records.
+    return saved, {}
+
+
+def save_output(menus, hours):
+
+    # Write to a temporary file first so a crash cannot leave a half-written output file.
+    temp = OUTPUT_FILE + ".tmp"
 
     with open(
-        "vanderbilt_all_menus.json",
+        temp,
         "w",
         encoding="utf-8"
     ) as f:
 
         json.dump(
-            data,
+            {"hours": hours, "menus": menus},
             f,
             indent=2,
             ensure_ascii=False
         )
+
+    os.replace(temp, OUTPUT_FILE)
+
+
+def scrape_hours():
+
+    # Hours only, no menus: quick, and covers locations with no menus right now.
+    # Saved menus in the output file are kept as they are.
+    driver.get(URL)
+
+    wait.until(
+        EC.presence_of_element_located(
+            (By.ID, "nav-unit-selector")
+        )
+    )
+
+    time.sleep(1)
+
+    menus, _ = load_output()
+    all_hours = {}
+
+    for location in get_locations():
+
+        print(f"Hours: {location['name']}")
+
+        hours = get_hours(location["unit_id"])
+
+        if hours is not None:
+            all_hours[location["name"]] = hours
+
+    save_output(menus, all_hours)
+
+    print(
+        f"Saved hours for {len(all_hours)} locations to "
+        f"{OUTPUT_FILE}"
+    )
 
 
 def scrape():
@@ -354,6 +524,7 @@ def scrape():
     )
 
     all_data = []
+    all_hours = {}
 
 
     for location_index, location in enumerate(
@@ -377,6 +548,12 @@ def scrape():
 
 
             select_location(unit_id)
+
+            hours = get_hours(unit_id)
+
+            if hours is not None:
+                all_hours[location_name] = hours
+                save_output(all_data, all_hours)
 
 
             dates = get_dates()
@@ -485,7 +662,7 @@ def scrape():
                             })
 
                             # Persist each menu so later failures retain collected results.
-                            save_data(all_data)
+                            save_output(all_data, all_hours)
 
                         except Exception as e:
 
@@ -509,7 +686,7 @@ def scrape():
             )
 
 
-    save_data(all_data)
+    save_output(all_data, all_hours)
 
     print()
     print("=" * 70)
@@ -523,12 +700,78 @@ def scrape():
 
     print(
         "Saved to "
-        "vanderbilt_all_menus.json"
+        f"{OUTPUT_FILE}"
     )
 
 
-try:
-    scrape()
+def build_hours_sql(all_hours):
 
-finally:
-    driver.quit()
+    # SQL that loads the scraped hours ({location: hours}) into dining_halls.hours.
+    lines = [
+        "-- Weekly hours of operation scraped from NetNutrition "
+        "(scraper/netnutrition_scraper.py --export-sql).",
+        ""
+    ]
+
+    for location, hall_id in HALL_IDS.items():
+
+        if location not in all_hours:
+            print(
+                f"warning: no hours scraped for {location}",
+                file=sys.stderr
+            )
+            continue
+
+        payload = json.dumps(
+            all_hours[location],
+            separators=(",", ":")
+        ).replace("'", "''")
+
+        lines.append(
+            f"update public.dining_halls "
+            f"set hours = '{payload}'::jsonb "
+            f"where id = '{hall_id}';"
+        )
+
+    return "\n".join(lines) + "\n"
+
+
+def export_sql(path):
+
+    with open(path, encoding="utf-8") as f:
+        saved = json.load(f)
+
+    if not isinstance(saved, dict) or "hours" not in saved:
+        sys.exit(f"{path} has no hours; run with --hours-only first")
+
+    sys.stdout.write(build_hours_sql(saved["hours"]))
+
+
+def main(hours_only=False):
+
+    global driver, wait
+
+    driver = webdriver.Chrome()
+    wait = WebDriverWait(driver, 10)
+
+    try:
+        if hours_only:
+            scrape_hours()
+
+        else:
+            scrape()
+
+    finally:
+        driver.quit()
+
+
+if __name__ == "__main__":
+
+    # python netnutrition_scraper.py                       scrape menus and hours into the JSON file
+    # python netnutrition_scraper.py --hours-only          refresh only the hours in the JSON file
+    # python netnutrition_scraper.py --export-sql [json]   print SQL for dining_halls.hours from the JSON file
+    if len(sys.argv) > 1 and sys.argv[1] == "--export-sql":
+        export_sql(sys.argv[2] if len(sys.argv) > 2 else OUTPUT_FILE)
+
+    else:
+        main(hours_only="--hours-only" in sys.argv[1:])
