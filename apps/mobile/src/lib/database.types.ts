@@ -36,6 +36,25 @@ export type Database = {
                   Relationships: [
 
                   ]
+                },"menu_items": {
+                  Row: {
+                    "category": string | null,"dining_hall_id": string,"id": string,"name": string
+                  }
+                  Insert: {
+                    "category"?: string | null,"dining_hall_id": string,"id"?: string,"name": string
+                  }
+                  Update: {
+                    "category"?: string | null,"dining_hall_id"?: string,"id"?: string,"name"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "menu_items_dining_hall_id_fkey"
+      columns: ["dining_hall_id"]
+isOneToOne: false
+      referencedRelation: "dining_halls"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"posts": {
                   Row: {
                     "author_id": string,"caption": string,"created_at": string,"dining_hall_id": string,"id": string,"photo_path": string
