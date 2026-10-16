@@ -11,16 +11,18 @@ to `src/` in `tsconfig.json`; restart Metro after changing aliases or entry poin
 | `app/_layout.tsx` | Auth provider and session-protected navigation |
 | `app/(auth)/sign-in.tsx` | Email-code sign-in and missing-configuration screen |
 | `app/(tabs)/_layout.tsx` | Feed, Dining, Post, Friends, Account; profile setup gate |
-| `app/(tabs)/new-post.tsx` | Camera/library selection, JPEG preparation, publishing |
+| `app/(tabs)/new-post.tsx` | Camera/library selection, JPEG preparation, publishing; optionally search the chosen hall's dishes, pick one, and rate it 1–5 stars in the same form |
 | `app/dining/[id].tsx` | Feed filtered by dining hall |
 | `app/post/[id].tsx` | Single post from Supabase |
 | `components/ui.tsx`, `theme.ts` | Shared visual components and design tokens |
 | `components/form-ui.tsx` | Form helpers and styles used by login, profile, post, and feed; wraps the shared Button |
 | `components/Feed.tsx`, `PostCard.tsx` | Paginated feed and actual uploaded photos |
+| `components/StarRating.tsx` | Tap-to-choose 1–5 star input |
 | `components/ProfileGate.tsx` | Loads profile or asks a signed-in user to create one |
 | `lib/auth.tsx` | Session restoration, auth events, foreground token refresh |
 | `lib/supabase.ts` | Client configuration and persistent session storage |
-| `lib/posts.ts` | Joined post queries, signed photo URLs, upload/insert workflow |
+| `lib/posts.ts` | Joined post queries (including the post's dish and its author's score for it), signed photo URLs, upload/insert workflow |
+| `lib/menu.ts` | A hall's dishes (ordered by station, then name) and the dish search used by the post form |
 | `lib/ratings.ts` | Score validation (whole numbers 1–5), submit or replace a dish rating, the current user's score, dish averages |
 | `lib/database.types.ts` | Generated database types; regenerate after schema changes |
 
@@ -46,7 +48,7 @@ protection is a UI convenience, not a substitute for database permissions.
 | `profiles` | Auth user ID and display name (1–40 trimmed characters); members read, users create/update their own profile |
 | `dining_halls` | Seeded ID/name reference list plus weekly `hours` (scraped from NetNutrition, loaded by migration); members read; app clients cannot write |
 | `menu_items` | Dish name and optional station/category per dining hall, one row per dish per hall; members read; app clients cannot write (the menu importer loads them) |
-| `posts` | Author, hall, photo path, caption (up to 280 characters), server timestamp; members read and create their own posts |
+| `posts` | Author, hall, optional dish (`menu_item_id`, which must be served at the post's hall), photo path, caption (up to 280 characters), server timestamp; members read and create their own posts |
 | `ratings` | Author, menu item, score (whole number 1–5), server timestamps; one rating per member per dish; members read all ratings and create or change only their own score; no deletes |
 | `food-photos` bucket | Private JPEGs up to 5 MB; members read; uploads must be in the current user's folder |
 

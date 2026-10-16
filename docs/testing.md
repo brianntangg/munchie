@@ -18,6 +18,7 @@ tab. Start the web app and enable Chrome's
 | Post | Choose a file, select a hall, add a caption, submit | Actual photo storage and post creation |
 | Dining | Open that hall and the meal detail | Hall filtering and detail navigation |
 | Account | Show your name and posts | Current user's profile and author filter |
+| Rate | On the Post tab, choose a photo and a hall, search for a dish, tap it, tap a star, then **Post meal and rating**. The new post in the feed shows the dish name and stars; repeat for the same dish with a different star count | A rating saved with the post and shown on it; rating a dish again changes the score instead of adding one |
 | Second user | Use a private window to sign in as `bob@vanderbilt.edu` and refresh | Shared data across accounts |
 
 Do not present Friends, sample menu data, or phone camera behavior as completed
