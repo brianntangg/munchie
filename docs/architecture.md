@@ -21,6 +21,7 @@ to `src/` in `tsconfig.json`; restart Metro after changing aliases or entry poin
 | `lib/auth.tsx` | Session restoration, auth events, foreground token refresh |
 | `lib/supabase.ts` | Client configuration and persistent session storage |
 | `lib/posts.ts` | Joined post queries, signed photo URLs, upload/insert workflow |
+| `lib/ratings.ts` | Score validation (whole numbers 1–5), submit or replace a dish rating, the current user's score, dish averages |
 | `lib/database.types.ts` | Generated database types; regenerate after schema changes |
 
 ## Authentication and data flow
