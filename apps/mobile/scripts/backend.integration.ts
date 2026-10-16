@@ -79,6 +79,62 @@ describe('Menu items', () => {
   });
 });
 
+describe('Ratings', () => {
+  let dish: string;
+  const myScore = async (member: Member) => {
+    const { data, error } = await member.api.from('ratings').select('score').eq('author_id', member.id).eq('menu_item_id', dish);
+    expect(error).toBeNull();
+    return data?.map((row) => row.score);
+  };
+
+  beforeAll(async () => {
+    const { data, error } = await alice.api.from('menu_items').select('id').limit(1).single();
+    expect(error).toBeNull();
+    dish = data!.id;
+  });
+
+  test('a member can rate a dish and read the rating back', async () => {
+    expect((await alice.api.from('ratings').insert({ menu_item_id: dish, score: 4 })).error).toBeNull();
+    expect(await myScore(alice)).toEqual([4]);
+  });
+
+  test('rating the same dish again updates the score instead of adding a second rating', async () => {
+    expect((await alice.api.from('ratings').insert({ menu_item_id: dish, score: 2 })).error?.code).toBe('23505');
+    expect((await alice.api.from('ratings').update({ score: 2 }).eq('menu_item_id', dish)).error).toBeNull();
+    expect(await myScore(alice)).toEqual([2]);
+  });
+
+  test("members see each other's ratings, so a dish can be averaged", async () => {
+    expect((await bob.api.from('ratings').insert({ menu_item_id: dish, score: 5 })).error).toBeNull();
+    const { data, error } = await alice.api.from('ratings').select('score').eq('menu_item_id', dish).in('author_id', [alice.id, bob.id]);
+    expect(error).toBeNull();
+    const scores = (data ?? []).map((row) => row.score);
+    expect(scores.reduce((sum, score) => sum + score, 0) / scores.length).toBe(3.5);
+  });
+
+  test("a member's update cannot change someone else's rating", async () => {
+    expect((await bob.api.from('ratings').update({ score: 1 }).eq('menu_item_id', dish).eq('author_id', alice.id)).error).toBeNull();
+    expect(await myScore(alice)).toEqual([2]);
+  });
+
+  test('rejects scores outside 1-5 and non-whole scores', async () => {
+    const { data, error } = await alice.api.from('menu_items').select('id').neq('id', dish).limit(1).single();
+    expect(error).toBeNull();
+    expect((await alice.api.from('ratings').insert({ menu_item_id: data!.id, score: 6 })).error?.code).toBe('23514');
+    expect((await alice.api.from('ratings').insert({ menu_item_id: data!.id, score: 0 })).error?.code).toBe('23514');
+    expect((await alice.api.from('ratings').insert({ menu_item_id: data!.id, score: 3.5 })).error).not.toBeNull();
+  });
+
+  test('cannot rate as another member', async () => {
+    const { error } = await alice.api.from('ratings').insert({ menu_item_id: dish, score: 3, author_id: bob.id });
+    expect(error?.code).toBe('42501');
+  });
+
+  test('denies anonymous rating reads', async () => {
+    expect((await anonymous.from('ratings').select('id')).error).not.toBeNull();
+  });
+});
+
 describe('Profile rules', () => {
   test('rejects blank, whitespace-only, and 41-character display names', async () => {
     for (const display_name of ['', '   ', 'x'.repeat(41)]) {
