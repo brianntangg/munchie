@@ -9,7 +9,10 @@ import { useAuth } from '@/lib/auth';
 import { message, supabase } from '@/lib/supabase';
 import type { Tables } from '@/lib/database.types';
 import { publishPost } from '@/lib/posts';
+import { filterDishes, loadMenuItems, type MenuItem } from '@/lib/menu';
+import { submitRating } from '@/lib/ratings';
 import { Button, ErrorText, Field, styles } from '@/components/form-ui';
+import { StarRating } from '@/components/StarRating';
 
 export default function Post() {
   const { session, loading } = useAuth();
@@ -21,6 +24,15 @@ export default function Post() {
   const [error, setError] = useState('');
   const [hallError, setHallError] = useState('');
   const [attempt, setAttempt] = useState(0);
+  // Optional rating: pick one of the hall's dishes, then give it 1-5 stars. It is saved together with the post.
+  const [dishes, setDishes] = useState<MenuItem[]>([]);
+  const [dish, setDish] = useState<MenuItem | null>(null);
+  const [score, setScore] = useState<number | null>(null);
+  const [query, setQuery] = useState('');
+  const [dishError, setDishError] = useState('');
+  const [dishAttempt, setDishAttempt] = useState(0);
+  // True once the post is published but its rating still needs saving, so a retry never creates a second post.
+  const [posted, setPosted] = useState(false);
   const postId = useRef<string | null>(null);
   const submitting = useRef(false);
   useEffect(() => {
@@ -33,6 +45,12 @@ export default function Post() {
     }).catch((error) => { if (active) setHallError(message(error)); });
     return () => { active = false; };
   }, [session, attempt]);
+  useEffect(() => {
+    if (!session || !hallId) return;
+    let active = true;
+    loadMenuItems(hallId).then((items) => { if (active) setDishes(items); }).catch((error) => { if (active) setDishError(message(error)); });
+    return () => { active = false; };
+  }, [session, hallId, dishAttempt]);
   if (loading) return <ActivityIndicator />;
   if (!session) return <Redirect href="/" />;
   const userId = session.user.id;
@@ -54,24 +72,58 @@ export default function Post() {
       setPhoto({ uri: image.uri, base64: image.base64 }); postId.current = null;
     } catch (error) { setError(message(error)); } finally { setBusy(false); }
   }
-  async function submit() {
-    if (!photo || !hallId || submitting.current) return;
-    submitting.current = true; setBusy(true); setError('');
-    postId.current ??= randomUUID();
-    try {
-      await publishPost({ id: postId.current, userId, hallId, caption, base64: photo.base64 });
-      setPhoto(null); setCaption(''); setHallId(''); postId.current = null;
-      router.navigate('/');
-    } catch (error) { setError(`${message(error)} Your draft is still here; you can retry.`); }
-    finally { submitting.current = false; setBusy(false); }
+  // A different hall has different dishes, so drop the previous hall's dish, score, and search.
+  function chooseHall(id: string) {
+    setHallId(id); setDishes([]); setDish(null); setScore(null); setQuery(''); setDishError('');
   }
+  function reset() {
+    setPhoto(null); setCaption(''); chooseHall(''); setPosted(false); postId.current = null;
+  }
+  async function submit() {
+    if ((!posted && (!photo || !hallId)) || (dish && score === null) || submitting.current) return;
+    submitting.current = true; setBusy(true); setError('');
+    let published = posted;
+    try {
+      if (!published) {
+        postId.current ??= randomUUID();
+        await publishPost({ id: postId.current, userId, hallId, menuItemId: dish?.id, caption, base64: photo!.base64 });
+        published = true;
+      }
+      if (dish && score !== null) await submitRating({ menuItemId: dish.id, score });
+      reset();
+      router.navigate('/');
+    } catch (error) {
+      if (published) { setPosted(true); setError(`Your meal was posted, but your rating was not saved: ${message(error)} Try again, or skip the rating.`); }
+      else setError(`${message(error)} Your draft is still here; you can retry.`);
+    } finally { submitting.current = false; setBusy(false); }
+  }
+  const locked = busy || posted;
+  const { shown, total } = filterDishes(dishes, query);
   return <SafeAreaView style={styles.screen} edges={['top']}><KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === 'ios' ? 'padding' : undefined}><ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content}>
     <Text style={styles.heading}>Share your plate</Text><Text style={styles.body}>A photo, a dining hall, and a little food inspiration.</Text>
     {photo && <Image source={{ uri: photo.uri }} style={[styles.photo, { borderRadius: 16 }]} accessibilityLabel="Selected meal photo" />}
-    <Button title="Take a photo" onPress={() => choosePhoto(true)} disabled={busy} secondary /><Button title={photo ? 'Choose a different photo' : 'Choose from library'} onPress={() => choosePhoto(false)} disabled={busy} secondary />
-    <Text style={styles.label}>Dining hall</Text><View style={styles.row}>{halls.map((hall) => <Button key={hall.id} title={`${hallId === hall.id ? '✓ ' : ''}${hall.name}`} secondary={hallId !== hall.id} disabled={busy} onPress={() => setHallId(hall.id)} />)}</View>
+    <Button title="Take a photo" onPress={() => choosePhoto(true)} disabled={locked} secondary /><Button title={photo ? 'Choose a different photo' : 'Choose from library'} onPress={() => choosePhoto(false)} disabled={locked} secondary />
+    <Text style={styles.label}>Dining hall</Text><View style={styles.row}>{halls.map((hall) => <Button key={hall.id} title={`${hallId === hall.id ? '✓ ' : ''}${hall.name}`} secondary={hallId !== hall.id} disabled={locked} onPress={() => chooseHall(hall.id)} />)}</View>
     <ErrorText>{hallError}</ErrorText>{!!hallError && <Button title="Reload dining halls" secondary onPress={() => { setHallError(''); setAttempt((value) => value + 1); }} />}
-    <Field label="Caption (optional)" placeholder="What’s good today?" value={caption} onChangeText={setCaption} maxLength={280} multiline editable={!busy} />
-    <ErrorText>{error}</ErrorText><Button title={busy ? 'Please wait…' : 'Post meal'} onPress={submit} disabled={busy || !photo || !hallId} />
+    {!!hallId && <View style={{ gap: 12 }}>
+      <Text style={styles.label}>Rate a dish (optional)</Text>
+      {dish ? <View style={{ gap: 12 }}>
+        <Text style={styles.body}>✓ {dish.name}{dish.category ? ` · ${dish.category}` : ''}</Text>
+        <StarRating value={score} onChange={setScore} disabled={busy} />
+        <Text style={styles.body}>{score === null ? 'Tap a star to rate it.' : `You gave it ${score} of 5.`}</Text>
+        {!posted && <Button title="Choose a different dish" secondary disabled={busy} onPress={() => { setDish(null); setScore(null); }} />}
+      </View> : <View style={{ gap: 12 }}>
+        <Field label="Search this hall’s dishes" placeholder="Try “chicken” or “pizza”" value={query} onChangeText={setQuery} editable={!locked} />
+        <ErrorText>{dishError}</ErrorText>{!!dishError && <Button title="Reload dishes" secondary onPress={() => { setDishError(''); setDishAttempt((value) => value + 1); }} />}
+        {!dishError && !dishes.length && <Text style={styles.body}>No dishes are listed for this hall yet.</Text>}
+        {!dishError && !!dishes.length && !shown.length && <Text style={styles.body}>No dishes match “{query.trim()}”.</Text>}
+        <View style={styles.row}>{shown.map((item) => <Button key={item.id} title={item.name} secondary disabled={locked} onPress={() => setDish(item)} />)}</View>
+        {total > shown.length && <Text style={styles.body}>Showing {shown.length} of {total} dishes. Type to narrow the list.</Text>}
+      </View>}
+    </View>}
+    <Field label="Caption (optional)" placeholder="What’s good today?" value={caption} onChangeText={setCaption} maxLength={280} multiline editable={!locked} />
+    <ErrorText>{error}</ErrorText>
+    <Button title={busy ? 'Please wait…' : posted ? 'Save rating' : dish ? 'Post meal and rating' : 'Post meal'} onPress={submit} disabled={busy || (!posted && (!photo || !hallId)) || (!!dish && score === null)} />
+    {posted && <Button title="Skip rating" secondary disabled={busy} onPress={() => { reset(); router.navigate('/'); }} />}
   </ScrollView></KeyboardAvoidingView></SafeAreaView>;
 }

@@ -19,7 +19,7 @@ jest.mock('../supabase', () => {
     insert: (...args: unknown[]) => mockInsert(...args),
     then: (resolve: (value: unknown) => unknown, reject: (reason: unknown) => unknown) => mockListResult().then(resolve, reject),
   };
-  for (const method of ['select', 'order', 'limit', 'eq', 'or']) {
+  for (const method of ['select', 'order', 'limit', 'eq', 'or', 'in']) {
     query[method] = (...args: unknown[]) => {
       mockQueryCall(method, ...args);
       return query;
@@ -74,6 +74,11 @@ describe('publishPost success', () => {
     await publishPost(post);
     expect(mockUpload).toHaveBeenCalledWith(path, expect.any(ArrayBuffer), { contentType: 'image/jpeg', upsert: false });
     expect(mockInsert).toHaveBeenCalledWith({ id: 'post-1', author_id: 'user-1', dining_hall_id: 'hall-1', caption: 'Great pasta', photo_path: path });
+  });
+
+  it('records the dish the post is about when one is chosen', async () => {
+    await publishPost({ ...post, menuItemId: 'dish-1' });
+    expect(mockInsert).toHaveBeenCalledWith({ id: 'post-1', author_id: 'user-1', dining_hall_id: 'hall-1', menu_item_id: 'dish-1', caption: 'Great pasta', photo_path: path });
   });
 });
 
@@ -189,6 +194,43 @@ describe('loadPosts results', () => {
   });
 });
 
+// A post about a dish, as returned with the dish name joined in.
+const dishRow = (id: string, authorId: string, itemId: string, dishName: string) => ({ ...row(id), author_id: authorId, menu_item_id: itemId, menu_items: { name: dishName } });
+
+describe('loadPosts dishes', () => {
+  it("shows each post's dish with its author's own score for it", async () => {
+    mockListResult
+      .mockResolvedValueOnce({ data: [dishRow('a', 'alice', 'dish-1', 'Achiote Chicken'), dishRow('b', 'bob', 'dish-1', 'Achiote Chicken'), row('c')], error: null })
+      .mockResolvedValueOnce({ data: [{ author_id: 'alice', menu_item_id: 'dish-1', score: 4 }, { author_id: 'bob', menu_item_id: 'dish-1', score: 2 }], error: null });
+    mockCreateSignedUrls.mockResolvedValue({ data: [], error: null });
+    const posts = await loadPosts();
+    expect(posts.map((p) => p.dish)).toEqual([{ name: 'Achiote Chicken', score: 4 }, { name: 'Achiote Chicken', score: 2 }, null]);
+    expect(queryCalls('in')).toEqual([['menu_item_id', ['dish-1']], ['author_id', ['alice', 'bob']]]);
+  });
+
+  it('shows the dish without a score when its author has not rated it', async () => {
+    mockListResult
+      .mockResolvedValueOnce({ data: [dishRow('a', 'alice', 'dish-1', 'Achiote Chicken')], error: null })
+      .mockResolvedValueOnce({ data: [{ author_id: 'bob', menu_item_id: 'dish-1', score: 5 }], error: null });
+    const [first] = await loadPosts();
+    expect(first.dish).toEqual({ name: 'Achiote Chicken', score: null });
+  });
+
+  it('does not look up ratings when no post has a dish', async () => {
+    mockListResult.mockResolvedValue({ data: [row('a')], error: null });
+    await loadPosts();
+    expect(queryCalls('in')).toEqual([]);
+  });
+
+  it('throws when ratings cannot be loaded', async () => {
+    const ratingsError = { message: 'permission denied' };
+    mockListResult
+      .mockResolvedValueOnce({ data: [dishRow('a', 'alice', 'dish-1', 'Achiote Chicken')], error: null })
+      .mockResolvedValueOnce({ data: null, error: ratingsError });
+    await expect(loadPosts()).rejects.toBe(ratingsError);
+  });
+});
+
 describe('loadPost', () => {
   it('returns null for a missing post without requesting a photo link', async () => {
     await expect(loadPost('missing')).resolves.toBeNull();
@@ -198,8 +240,14 @@ describe('loadPost', () => {
 
   it('returns the post with a one-hour photo link', async () => {
     mockMaybeSingle.mockResolvedValue({ data: row('one'), error: null });
-    await expect(loadPost('one')).resolves.toEqual({ ...row('one'), imageUrl: 'https://photos/one' });
+    await expect(loadPost('one')).resolves.toEqual({ ...row('one'), imageUrl: 'https://photos/one', dish: null });
     expect(mockCreateSignedUrl).toHaveBeenCalledWith('user-1/one.jpg', 3600);
+  });
+
+  it("returns the post's dish with its author's score", async () => {
+    mockMaybeSingle.mockResolvedValue({ data: dishRow('one', 'alice', 'dish-1', 'Achiote Chicken'), error: null });
+    mockListResult.mockResolvedValue({ data: [{ author_id: 'alice', menu_item_id: 'dish-1', score: 5 }], error: null });
+    expect((await loadPost('one'))?.dish).toEqual({ name: 'Achiote Chicken', score: 5 });
   });
 
   it('throws when the query fails', async () => {

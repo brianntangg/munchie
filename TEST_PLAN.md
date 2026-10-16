@@ -27,7 +27,7 @@ Likelihood: complex logic, external services, new code score higher. Impact: dat
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | Create food post with photo (Story 4) | 3 | 3 | **9** | Y | Y (exists; extend to run `posts.ts`) | Y | Brian Tang |
 | Sign in with Vanderbilt email code (Stories 1–3) | 2 | 3 | **6** | – | Y (extend with EP/BVA) | Y | Brian Tang |
-| Submit a rating (Story 7, new) | 3 | 2 | **6** | Y (`ratings.test.ts`) | Y (`ratings.test.sql`, backend tests; UI test when the screen is built) | – | David Lee (backend), Justin Kong (UI) |
+| Submit a rating (Story 7, new) | 3 | 2 | **6** | Y (`ratings.test.ts`) | Y (`ratings.test.sql`, backend tests; `menu.test.ts`, the dish query in the backend tests, and the manual Rate step in the demo script; no automated UI test because the project has no component-testing library) | – | David Lee (backend), Justin Kong (UI) |
 | Feed paging and auto-refresh (Stories 5–6) | 3 | 2 | **6** | Y (auto-refresh when built) | Y | – | Tevin Park |
 | Dining menu info from scraper (Story 15) | 3 | 2 | **6** | Y (after parser refactor) | Y (saved HTML, no live site) | – | Tevin Park |
 | Dining hall open/closed status (new) | 2 | 2 | 4 | Y | – | – | Justin Kong |

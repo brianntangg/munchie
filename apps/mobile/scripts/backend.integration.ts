@@ -69,6 +69,16 @@ describe('Menu items', () => {
     expect(data?.[0].dining_halls).toEqual({ name: expect.any(String) });
   });
 
+  // Same query as loadMenuItems in src/lib/menu.ts, which the dish picker on the new-post screen uses.
+  test("lists one hall's dishes ordered by station then name", async () => {
+    const hall = halls.find((candidate) => candidate.name === 'Rand')!;
+    const { data, error } = await alice.api.from('menu_items').select('id, name, category').eq('dining_hall_id', hall.id).order('category').order('name');
+    expect(error).toBeNull();
+    expect(data?.length).toBeGreaterThan(0);
+    const keys = data!.map((dish) => `${dish.category ?? '\uffff'}|${dish.name}`);
+    expect(keys).toEqual([...keys].sort());
+  });
+
   test('denies anonymous menu reads', async () => {
     expect((await anonymous.from('menu_items').select('id')).error).not.toBeNull();
   });
@@ -268,8 +278,9 @@ describe('Post rules', () => {
     });
 
     test('post detail joins the author and dining hall', async () => {
-      const { data, error } = await bob.api.from('posts').select('*, profiles!inner(display_name), dining_halls!inner(name)').eq('id', alicePhoto.id).single();
+      const { data, error } = await bob.api.from('posts').select('*, profiles!inner(display_name), dining_halls!inner(name), menu_items(name)').eq('id', alicePhoto.id).single();
       expect(error).toBeNull();
+      expect(data.menu_items).toBeNull(); // this post names no dish
       expect(data.profiles.display_name).toBe(longName);
       expect(data.dining_halls.name).toBe(halls[0].name);
       expect(data.photo_path).toBe(alicePhoto.path);
@@ -284,6 +295,46 @@ describe('Post rules', () => {
       expect(error).toBeNull();
       expect(data?.caption).toBe('x'.repeat(280));
     });
+  });
+});
+
+describe('Posts about a dish', () => {
+  const photo = { id: '', path: '' };
+  let dishInHall: string;
+  let dishElsewhere: string;
+  // The post select the feed uses (POST_COLUMNS in src/lib/posts.ts), and the lookup of the author's own rating.
+  const feedSelect = '*, profiles!inner(display_name), dining_halls!inner(name), menu_items(name)';
+
+  beforeAll(async () => {
+    const hall = halls.find((candidate) => candidate.name === 'Rand')!;
+    const other = halls.find((candidate) => candidate.name === 'Commons')!;
+    // Last by name, so it is not the dish the Ratings tests above already rated.
+    dishInHall = (await bob.api.from('menu_items').select('id').eq('dining_hall_id', hall.id).order('name', { ascending: false }).limit(1).single()).data!.id;
+    dishElsewhere = (await bob.api.from('menu_items').select('id').eq('dining_hall_id', other.id).limit(1).single()).data!.id;
+    Object.assign(photo, newPhoto(bob));
+    cleanup.push({ member: () => bob, path: photo.path });
+    await upload(bob, photo.path);
+  });
+
+  const post = (hallName: string, dish: string | null) => ({ id: photo.id, author_id: bob.id, dining_hall_id: halls.find((candidate) => candidate.name === hallName)!.id, photo_path: photo.path, menu_item_id: dish });
+
+  test('a post cannot name a dish from a different hall', async () => {
+    expect((await bob.api.from('posts').insert(post('Rand', dishElsewhere))).error?.code).toBe('23503');
+  });
+
+  test('a post names a dish served at its hall, and the feed joins its name', async () => {
+    expect((await bob.api.from('posts').insert(post('Rand', dishInHall))).error).toBeNull();
+    const { data, error } = await alice.api.from('posts').select(feedSelect).eq('id', photo.id).single();
+    expect(error).toBeNull();
+    expect(data.menu_items).toEqual({ name: expect.any(String) });
+  });
+
+  test("the feed can look up the author's own score for the dish", async () => {
+    expect((await bob.api.from('ratings').insert({ menu_item_id: dishInHall, score: 4 })).error).toBeNull();
+    expect((await alice.api.from('ratings').insert({ menu_item_id: dishInHall, score: 2 })).error).toBeNull();
+    const { data, error } = await alice.api.from('ratings').select('author_id, menu_item_id, score').in('menu_item_id', [dishInHall]).in('author_id', [bob.id]);
+    expect(error).toBeNull();
+    expect(data).toEqual([{ author_id: bob.id, menu_item_id: dishInHall, score: 4 }]);
   });
 });
 
