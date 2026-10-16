@@ -57,13 +57,13 @@ isOneToOne: false
                   ]
                 },"posts": {
                   Row: {
-                    "author_id": string,"caption": string,"created_at": string,"dining_hall_id": string,"id": string,"photo_path": string
+                    "author_id": string,"caption": string,"created_at": string,"dining_hall_id": string,"id": string,"menu_item_id": string | null,"photo_path": string
                   }
                   Insert: {
-                    "author_id"?: string,"caption"?: string,"created_at"?: string,"dining_hall_id": string,"id"?: string,"photo_path": string
+                    "author_id"?: string,"caption"?: string,"created_at"?: string,"dining_hall_id": string,"id"?: string,"menu_item_id"?: string | null,"photo_path": string
                   }
                   Update: {
-                    "author_id"?: string,"caption"?: string,"created_at"?: string,"dining_hall_id"?: string,"id"?: string,"photo_path"?: string
+                    "author_id"?: string,"caption"?: string,"created_at"?: string,"dining_hall_id"?: string,"id"?: string,"menu_item_id"?: string | null,"photo_path"?: string
                   }
                   Relationships: [
                     {
@@ -78,6 +78,12 @@ isOneToOne: false
 isOneToOne: false
       referencedRelation: "dining_halls"
       referencedColumns: ["id"]
+    },{
+      foreignKeyName: "posts_menu_item_in_hall_fkey"
+      columns: ["menu_item_id","dining_hall_id"]
+isOneToOne: false
+      referencedRelation: "menu_items"
+      referencedColumns: ["id","dining_hall_id"]
     }
                   ]
                 },"profiles": {
