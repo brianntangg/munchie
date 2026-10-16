@@ -61,6 +61,24 @@ describe('Sign-in and access', () => {
   });
 });
 
+describe('Menu items', () => {
+  test('members can read the seeded menu items with their dining hall', async () => {
+    const { data, error } = await alice.api.from('menu_items').select('id, name, dining_halls!inner(name)').limit(5);
+    expect(error).toBeNull();
+    expect(data?.length).toBeGreaterThan(0);
+    expect(data?.[0].dining_halls).toEqual({ name: expect.any(String) });
+  });
+
+  test('denies anonymous menu reads', async () => {
+    expect((await anonymous.from('menu_items').select('id')).error).not.toBeNull();
+  });
+
+  test('members cannot add menu items', async () => {
+    const { error } = await alice.api.from('menu_items').insert({ dining_hall_id: halls[0].id, name: `Test dish ${run}` });
+    expect(error?.code).toBe('42501');
+  });
+});
+
 describe('Profile rules', () => {
   test('rejects blank, whitespace-only, and 41-character display names', async () => {
     for (const display_name of ['', '   ', 'x'.repeat(41)]) {
