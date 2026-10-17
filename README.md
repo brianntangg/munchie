@@ -72,7 +72,7 @@ unzip munchie-web-sprint3.zip -d munchie-web
 npx serve -s munchie-web             # open the printed URL
 ```
 
-Sign-in codes arrive in the local inbox at http://localhost:54324.
+Sign-in codes arrive in the local inbox at <http://localhost:54324>.
 
 ## Contributing
 
