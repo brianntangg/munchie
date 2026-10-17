@@ -61,7 +61,8 @@ npx --yes supabase test db
 
 The database suite checks verified membership, domain restrictions, and write
 permissions. Its fixture changes roll back. See
-[`.github/workflows/ci.yml`](../.github/workflows/ci.yml) for the checks CI runs.
+[pipeline](pipeline.md) for the checks CI runs and
+[integration tests](integration-tests.md) for what each test covers.
 
 ## Manual acceptance
 

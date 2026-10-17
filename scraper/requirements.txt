@@ -1,0 +1,5 @@
+selenium==4.51.0
+
+# Development: lint and tests (CI runs both)
+pytest==9.1.1
+ruff==0.17.1
