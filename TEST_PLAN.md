@@ -17,7 +17,7 @@
 - Excluded from the coverage denominator: generated `database.types.ts`, `auth.tsx` (a React provider; see Not testing), and screens/components in `src/app` and `src/components`.
 - **Rule that keeps the target honest:** new logic goes into `src/lib` as plain functions that screens call. That includes rating validation, the paging cursor and page merge, auto-refresh timing, and scraper parsing. Screens stay thin, and the logic that can break is the logic we measure.
 - Tools: Jest (`jest-expo` preset) for unit tests and coverage; pgTAP and the backend tests for integration.
-- CI runs unit tests with coverage on every PR; integration tests join CI in Week 2 (Supabase CLI job).
+- CI runs in order on every PR, every merge to `main`, and sprint tags: lint, typecheck, unit tests (coverage gate), integration tests (pgTAP and backend tests against local Supabase), then a coverage report on the run summary. A separate job lints and tests the scraper (`ruff`, `pytest`).
 
 ## Priorities (from risk map)
 

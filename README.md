@@ -46,7 +46,7 @@ your computer instead of sending them to real mailboxes.
 | `apps/mobile/scripts/` | Local backend integration test |
 | `supabase/` | Local services, migrations, email templates, database tests |
 | `scraper/` | Standalone Python dining scraper and captured menu data |
-| `.github/workflows/ci.yml` | Lint, typecheck, unit tests, and integration tests against local Supabase |
+| `.github/workflows/ci.yml` | CI/CD: lint, typecheck, unit tests with a coverage gate, integration tests against local Supabase, coverage report, scraper lint and tests; web build on merge and a release on sprint tags |
 
 ## Development
 
@@ -57,6 +57,22 @@ through Git. Use `npx expo install` from `apps/mobile` when adding app dependenc
 Browser demos and native bundle builds are available. Physical-phone testing is
 still in progress; a successful bundle build does not verify camera permissions
 or the complete phone flow. See the [known gaps](docs/testing.md#known-gaps).
+
+### Run a release build
+
+Every merge to `main` uploads a web build named `munchie-web-<commit>` to its
+[Actions run](https://github.com/brianntangg/munchie/actions/workflows/ci.yml), and each
+sprint tag (for example `sprint3`) publishes it as a
+[release](https://github.com/brianntangg/munchie/releases). The build talks to local
+Supabase, so start that first:
+
+```sh
+npx supabase start                   # from the repository root; Docker must be running
+unzip munchie-web-sprint3.zip -d munchie-web
+npx serve -s munchie-web             # open the printed URL
+```
+
+Sign-in codes arrive in the local inbox at http://localhost:54324.
 
 ## Contributing
 

@@ -14,10 +14,10 @@ files in the working tree. For example, on macOS/Linux:
 ```sh
 python3 -m venv /tmp/munchie-scraper-venv
 source /tmp/munchie-scraper-venv/bin/activate
-python -m pip install selenium
+python -m pip install -r scraper/requirements.txt
 ```
 
-No pinned Python dependency file is currently provided. Selenium Manager may
+`requirements.txt` pins Selenium plus the lint and test tools. Selenium Manager may
 need network access to obtain a matching browser driver; see the
 [official Selenium Manager documentation](https://www.selenium.dev/documentation/selenium_manager/).
 
@@ -26,6 +26,15 @@ From the repository root:
 ```sh
 cd scraper
 python netnutrition_scraper.py
+```
+
+## Lint and tests
+
+CI runs both on every pull request (the "Scraper lint and tests" check). From `scraper`:
+
+```sh
+ruff check .   # rules in ruff.toml
+pytest         # tests live in scraper/tests and use saved pages, never the live site
 ```
 
 The script writes `vanderbilt_all_menus.json` in the **current working directory**
