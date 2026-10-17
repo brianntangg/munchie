@@ -3,6 +3,7 @@ import re
 import time
 
 from selenium import webdriver
+from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
@@ -163,7 +164,7 @@ def get_menus(date_name):
                 )
             ) > 0
         )
-    except:
+    except TimeoutException:
         return []
 
     elements = driver.find_elements(
@@ -245,7 +246,8 @@ def load_menu(unit_id, menu_id):
                 )
             ) > 0
         )
-    except:
+    except TimeoutException:
+        # The menu has no items; scrape_items returns an empty list.
         pass
 
 
