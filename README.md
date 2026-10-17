@@ -14,6 +14,8 @@ authentication, PostgreSQL, and private image storage.
   built and planned.
 - [Demo and testing](docs/testing.md): walkthrough, automated tests, and
   acceptance checks.
+- [CI/CD pipeline](docs/pipeline.md) and [integration tests](docs/integration-tests.md):
+  stages, delivery, branch protection, and what each test covers.
 - [Codebase and backend](docs/architecture.md): routes, data flow, access rules,
   migrations, and hosted setup.
 - [Real email delivery](docs/email-delivery.md): hosted SMTP and sign-in code templates.
@@ -47,6 +49,7 @@ your computer instead of sending them to real mailboxes.
 | `supabase/` | Local services, migrations, email templates, database tests |
 | `scraper/` | Standalone Python dining scraper and captured menu data |
 | `.github/workflows/ci.yml` | CI/CD: lint, typecheck, unit tests with a coverage gate, integration tests against local Supabase, coverage report, scraper lint and tests; web build on merge and a release on sprint tags |
+| `docs/pipeline.md`, `docs/integration-tests.md` | Pipeline stages and delivery; what each integration test covers |
 
 ## Development
 
