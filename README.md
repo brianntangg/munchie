@@ -84,6 +84,11 @@ Sign-in codes arrive in the local inbox at http://localhost:54324.
 4. A pull request merges after one teammate approves and CI passes. Reviewers
    approve but do not merge someone else's pull request; auto-merge does it.
 5. If `main` changes while your pull request is open, select **Update branch**.
+6. Stacked pull requests: when your branch builds on another open pull request, set
+   its base to that branch so the diff shows only your work, but **never merge a pull
+   request whose base is not `main`**. Branch protection (required review and CI)
+   only applies to `main`. Wait for the pull request below yours to merge; GitHub then
+   switches yours to `main`, and it merges through the normal review.
 
 Every pull request automatically requests review from the team
 (see [CODEOWNERS](.github/CODEOWNERS)).
