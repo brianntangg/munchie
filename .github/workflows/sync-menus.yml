@@ -1,0 +1,48 @@
+name: Sync dining menus
+
+on:
+  schedule:
+    - cron: "0 6 * * 0"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Set up Google Chrome
+        uses: browser-actions/setup-chrome@v1
+
+      - name: Install dependencies
+        run: pip install -r scraper/requirements.txt
+
+      - name: Run NetNutrition scraper
+        working-directory: scraper
+        run: xvfb-run --auto-servernum python netnutrition_scraper.py
+
+      - name: Import menus into Supabase
+        working-directory: scraper
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: python import_menus.py
+
+      - name: Commit updated JSON snapshot
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add scraper/vanderbilt_all_menus.json
+          git diff --cached --quiet || git commit -m "chore: update dining menus"
+          git push
