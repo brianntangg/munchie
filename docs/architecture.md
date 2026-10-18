@@ -109,6 +109,10 @@ The hosted database holds only real data. Keep it that way:
 - Apply schema changes with `npx --yes supabase db push`. Never run
   `supabase db push --include-seed` or `supabase db reset --linked`; `seed.sql`
   holds demo dishes for local development only.
+- Migrations do not reach the hosted database automatically. After merging a pull
+  request that adds one, run `npx --yes supabase db push --dry-run`, then
+  `npx --yes supabase db push`, so the deployed app never queries columns that do
+  not exist yet.
 - Integration tests run only against local Supabase. `apps/mobile/scripts/helpers.ts`
   refuses non-localhost URLs, so they cannot create test accounts in the hosted project.
 - Only the publishable key goes in GitHub variables or the app. The service-role
