@@ -92,7 +92,8 @@ is not a substitute for the physical-phone checks.
   not been confirmed. Bundle exports do not verify camera permissions or the phone flow.
 - Expo Go must be signed in to the same account as the Expo CLI; Google-linked
   accounts may need browser login.
-- Hosted deployment and real email delivery have not been verified.
+- The hosted site (<https://brianntangg.github.io/munchie>) and real email delivery
+  are checked manually only; automated tests run against local Supabase.
 
 ## Before sharing changes
 

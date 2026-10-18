@@ -98,8 +98,23 @@ See [Supabase's migration guide](https://supabase.com/docs/guides/local-developm
 
 ## Hosted development
 
-A hosted project lets teammates share data without keeping one developer's Mac
-running. This has not been deployed or verified as part of local setup.
+The web app is hosted at <https://brianntangg.github.io/munchie>, backed by a
+hosted Supabase project. CI deploys it on every merge to `main` (see the
+[pipeline](pipeline.md#continuous-delivery)). The app reads the project URL and
+publishable key from the repository Actions variables `EXPO_PUBLIC_SUPABASE_URL`
+and `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY`.
+
+The hosted database holds only real data. Keep it that way:
+
+- Apply schema changes with `npx --yes supabase db push`. Never run
+  `supabase db push --include-seed` or `supabase db reset --linked`; `seed.sql`
+  holds demo dishes for local development only.
+- Integration tests run only against local Supabase. `apps/mobile/scripts/helpers.ts`
+  refuses non-localhost URLs, so they cannot create test accounts in the hosted project.
+- Only the publishable key goes in GitHub variables or the app. The service-role
+  key goes only in Actions secrets, for the menu sync job.
+
+To set up a new hosted project (for example, a fresh copy for another team):
 
 1. Create a development project in the [Supabase dashboard](https://supabase.com/dashboard).
 2. From the repository root, run `npx --yes supabase login`, then
@@ -113,6 +128,8 @@ running. This has not been deployed or verified as part of local setup.
 6. Set the app's URL and publishable key to that hosted project, restart Expo,
    and repeat the two-user acceptance flow with real campus mailboxes.
 
+7. Set the repository variables above and enable GitHub Pages with the source
+   **GitHub Actions**; the next merge to `main` deploys the site.
+
 Local accounts and photos do not automatically transfer to the hosted project.
-The local integration-test script intentionally refuses hosted URLs. Use the
-manual checklist for a hosted demo.
+Use the manual checklist for a hosted demo.

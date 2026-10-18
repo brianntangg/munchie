@@ -8,7 +8,7 @@ For what the integration tests cover, see [integration tests](integration-tests.
 | Event | What runs |
 | --- | --- |
 | Pull request (opened or updated) | All checks; no build |
-| Merge to `main` | All checks, then the web build artifact |
+| Merge to `main` | All checks, the web build artifact, then a deploy to GitHub Pages |
 | Sprint tag pushed (e.g. `sprint3`) | All checks, the web build, then a GitHub release |
 
 ## Stages
@@ -36,10 +36,12 @@ flowchart LR
 
   coverage[Coverage report<br/>on the run summary]
   build[Build web artifact<br/>munchie-web-commit]
+  deploy[Deploy to GitHub Pages<br/>brianntangg.github.io/munchie]
   release[Publish release<br/>zipped build]
 
   trigger --> unit --> integration --> coverage --> build
   trigger --> scraper --> build
+  build -- main only --> deploy
   build -- sprint tag only --> release
 ```
 
@@ -49,25 +51,37 @@ flowchart LR
 | Integration tests (local Supabase) | Starts Supabase in the runner, runs the pgTAP database tests, then the backend tests through supabase-js | A database rule or an app-to-backend check fails |
 | Coverage report | Posts a statements/branches/functions/lines table to the run summary | Integration tests failed, so it is skipped |
 | Scraper lint and tests | Installs pinned Python requirements, runs ruff, then pytest on saved pages | Lint errors or a failing parser test |
-| Build web artifact (merge or tag only) | Exports the web app and uploads it as `munchie-web-<commit>` (or `munchie-web-<tag>`) | Any check failed, so it is skipped |
+| Build web artifact (merge or tag only) | Exports the web app and uploads it as `munchie-web-<commit>` (or `munchie-web-<tag>`), plus a `/munchie` build for GitHub Pages | Any check failed, so it is skipped |
+| Deploy to GitHub Pages (main only) | Publishes the Pages build to <https://brianntangg.github.io/munchie> | The build failed, so it is skipped |
 | Publish release (tag only) | Zips the build and publishes it as a GitHub release named after the tag | The build failed, so it is skipped |
 
 Unit and integration tests are separate jobs, so a red check shows which layer
 broke. Tests never call paid or external services: the backend runs in the CI
 runner, email codes are read from Supabase's local inbox, and scraper tests use
 saved pages instead of the live NetNutrition site. The repository holds no
-secrets.
+secrets; the deploy uses GitHub's built-in Pages token.
 
 ## Continuous delivery
 
-Every merge to `main` produces a versioned, runnable web build. It is built
-against local Supabase, so it runs anywhere with `npx supabase start`; the steps
-are in the [README](../README.md#run-a-release-build). Sprint tags also publish
-it as a [release](https://github.com/brianntangg/munchie/releases).
+Every merge to `main` that passes all checks is deployed to
+<https://brianntangg.github.io/munchie>, backed by a hosted Supabase project.
+The same run uploads a versioned, runnable web build (`munchie-web-<commit>`);
+the steps to run it are in the [README](../README.md#run-a-release-build).
+Sprint tags also publish it as a
+[release](https://github.com/brianntangg/munchie/releases). Tag runs do not
+deploy, because the `github-pages` environment only accepts `main`.
 
-Setting the repository variables `EXPO_PUBLIC_SUPABASE_URL` and
-`EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY` points the build at a hosted project
-instead, with no workflow change. Hosting is planned for a later sprint.
+The build reads the hosted project from the repository variables
+`EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (both public).
+If they are unset, it builds against local Supabase instead and skips the Pages
+deploy. The Pages build sets `EXPO_BASE_URL=/munchie` (read by
+`apps/mobile/app.config.js`) so assets load from the subpath, and copies
+`index.html` to `404.html` so deep links survive a refresh. The release build
+stays at the root.
+
+Tests never touch the hosted project; database changes reach it only through
+`supabase db push`, never with seed data (see
+[hosted development](architecture.md#hosted-development)).
 
 ## Protecting `main`
 
