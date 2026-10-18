@@ -46,6 +46,7 @@ protection is a UI convenience, not a substitute for database permissions.
 | `dining_halls` | Seeded ID/name reference list; members read; app clients cannot write |
 | `menu_items` | Dish name and optional station/category per dining hall, one row per dish per hall; members read; app clients cannot write (the menu importer loads them) |
 | `posts` | Author, hall, photo path, caption (up to 280 characters), server timestamp; members read and create their own posts |
+| `ratings` | Author, menu item, score (whole number 1–5), server timestamps; one rating per member per dish; members read all ratings and create or change only their own score; no deletes |
 | `food-photos` bucket | Private JPEGs up to 5 MB; members read; uploads must be in the current user's folder |
 
 Posts require an existing uploaded photo at `user-id/post-id.jpg`. Clients cannot
