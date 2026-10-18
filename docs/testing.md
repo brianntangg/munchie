@@ -86,6 +86,18 @@ Run against the browser, then repeat on a physical phone. Use
 Drafts are held in memory, not persisted through app restarts. Browser device mode
 is not a substitute for the physical-phone checks.
 
+## Hosted smoke check
+
+Run after a merge to `main` deploys <https://brianntangg.github.io/munchie>. Use
+real `@vanderbilt.edu` accounts; never create test accounts in the hosted project.
+
+- [ ] The `main` run's **Deploy to GitHub Pages** job is green and the site loads.
+- [ ] A deep link (for example `/munchie/dining`) still loads after a browser refresh.
+- [ ] A sign-in code arrives in a real Vanderbilt inbox and signs you in.
+- [ ] A second real account sees a meal the first one posted, after refreshing.
+- [ ] In the dashboard SQL editor, `select email from auth.users where email like 'test-%'`
+      returns no rows.
+
 ## Known gaps
 
 - A complete native login, upload, and session walkthrough on a physical phone has

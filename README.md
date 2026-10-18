@@ -36,8 +36,9 @@ Friends is a coming-soon screen, and the scraper's output is not yet connected t
 the app. See the [product vision](docs/product-vision.md) for planned features.
 
 Email verification establishes access to a Vanderbilt mailbox, not independently
-verified student enrollment. Local development captures verification emails on
-your computer instead of sending them to real mailboxes.
+verified student enrollment. The [live site](https://brianntangg.github.io/munchie)
+sends real codes to `@vanderbilt.edu` inboxes; local development captures them on
+your computer instead.
 
 ## Repository map
 
