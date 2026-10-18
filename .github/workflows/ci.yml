@@ -1,12 +1,15 @@
 name: Mobile CI
 
 on:
-  # Pull requests run CI once; pushes run it only after merging to main.
+  # Pull requests run CI once; pushes run it only after merging to main or tagging a sprint (e.g. sprint3).
   push:
     branches: [main]
+    tags: ['sprint*']
   pull_request:
   workflow_dispatch:
 
+# Stages run in order and stop at the first failure:
+# install -> lint -> typecheck -> unit tests (coverage gate) -> integration tests -> coverage report -> build -> release (tags only).
 jobs:
   typecheck:
     name: Lint and typecheck mobile app
@@ -37,45 +40,48 @@ jobs:
         run: npm run typecheck
 
       - name: Unit tests
-        run: npm test -- --ci --coverage
+        # Fails below the coverage threshold in package.json; the summary feeds the coverage report stage.
+        run: npm test -- --ci --coverage --coverageReporters=text --coverageReporters=json-summary
 
-  build:
-    name: Build web artifact
-    # Runs after a merge to main, once lint, unit, and integration checks pass.
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: [typecheck, integration]
+      - name: Save coverage summary
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-summary
+          path: apps/mobile/coverage/coverage-summary.json
+          retention-days: 7
+
+  scraper:
+    name: Scraper lint and tests
     runs-on: ubuntu-latest
 
     defaults:
       run:
-        working-directory: apps/mobile
+        working-directory: scraper
 
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
-          node-version: 24
-          cache: npm
-          cache-dependency-path: apps/mobile/package-lock.json
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: scraper/requirements.txt
 
       - name: Install dependencies
-        run: npm ci
+        run: pip install -r requirements.txt
 
-      - name: Export web build
-        run: npx expo export --platform web
+      - name: Lint
+        run: ruff check .
 
-      - name: Upload build artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: munchie-web
-          path: apps/mobile/dist
-          retention-days: 30
+      - name: Unit tests
+        # Parser tests use saved pages, never the live NetNutrition site. Exit code 5 means no tests exist yet.
+        run: pytest || [ $? -eq 5 ]
 
   integration:
     name: Integration tests (local Supabase)
+    needs: typecheck
     runs-on: ubuntu-latest
 
     steps:
@@ -113,3 +119,111 @@ jobs:
       - name: Backend integration tests
         working-directory: apps/mobile
         run: npm run test:backend
+
+  coverage:
+    name: Coverage report
+    needs: integration
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download coverage summary
+        uses: actions/download-artifact@v4
+        with:
+          name: coverage-summary
+
+      - name: Write coverage report
+        run: |
+          {
+            echo '## Unit test coverage (`apps/mobile/src/lib`, gate 70%)'
+            echo
+            echo '| Metric | Covered | Total | Percent |'
+            echo '| --- | --- | --- | --- |'
+            jq -r '.total | to_entries[] | select(.key != "branchesTrue") | "| \(.key) | \(.value.covered) | \(.value.total) | \(.value.pct)% |"' coverage-summary.json
+          } >> "$GITHUB_STEP_SUMMARY"
+          cat "$GITHUB_STEP_SUMMARY"
+
+  build:
+    name: Build web artifact
+    # Runs after a merge to main or a sprint tag, once every check has passed.
+    if: github.event_name == 'push'
+    needs: [coverage, scraper]
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: apps/mobile
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: apps/mobile/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Set up Supabase CLI
+        if: vars.EXPO_PUBLIC_SUPABASE_URL == ''
+        uses: supabase/setup-cli@v1
+        with:
+          version: 2.120.0
+
+      - name: Point the build at Supabase
+        # Uses the repository variables when a hosted project is configured; otherwise the local Supabase
+        # defaults, so the build runs against `npx supabase start` on any machine. Both values are public.
+        env:
+          HOSTED_URL: ${{ vars.EXPO_PUBLIC_SUPABASE_URL }}
+          HOSTED_KEY: ${{ vars.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
+        run: |
+          if [ -n "$HOSTED_URL" ]; then
+            API_URL="$HOSTED_URL" PUBLISHABLE_KEY="$HOSTED_KEY"
+          else
+            (cd ../.. && supabase start -x realtime,imgproxy,postgres-meta,studio,edge-runtime,logflare,vector,supavisor)
+            eval "$(cd ../.. && supabase status -o env)"
+          fi
+          printf 'EXPO_PUBLIC_SUPABASE_URL=%s\nEXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY=%s\n' "$API_URL" "$PUBLISHABLE_KEY" > .env.local
+          echo "Building against $API_URL"
+
+      - name: Export web build
+        run: |
+          npx expo export --platform web
+          # Static hosts serve 404.html for unknown paths, so deep links load the app.
+          cp dist/index.html dist/404.html
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: munchie-web-${{ github.ref_type == 'tag' && github.ref_name || github.sha }}
+          path: apps/mobile/dist
+          retention-days: 90
+
+  release:
+    name: Publish release
+    if: github.ref_type == 'tag'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Download build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: munchie-web-${{ github.ref_name }}
+          path: dist
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          (cd dist && zip -qr "../munchie-web-${{ github.ref_name }}.zip" .)
+          gh release create "${{ github.ref_name }}" "munchie-web-${{ github.ref_name }}.zip" \
+            --title "Munchie ${{ github.ref_name }}" --generate-notes
