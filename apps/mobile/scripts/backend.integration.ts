@@ -345,12 +345,18 @@ describe('Posts about a dish', () => {
   // The post select the feed uses (POST_COLUMNS in src/lib/posts.ts), and the lookup of the author's own rating.
   const feedSelect = '*, profiles!inner(display_name), dining_halls!inner(name), menu_items(name)';
 
+  // Seeded dishes, picked by name: one at Rand for the post, one at Commons to prove it cannot be used for a Rand post.
+  // (The Ratings tests above rate whichever dish comes back first, so these are chosen to be different dishes.)
+  const dishId = async (hallName: string, dishName: string) => {
+    const hall = halls.find((candidate) => candidate.name === hallName)!;
+    const { data, error } = await bob.api.from('menu_items').select('id').eq('dining_hall_id', hall.id).eq('name', dishName).single();
+    expect(error).toBeNull();
+    return data!.id as string;
+  };
+
   beforeAll(async () => {
-    const hall = halls.find((candidate) => candidate.name === 'Rand')!;
-    const other = halls.find((candidate) => candidate.name === 'Commons')!;
-    // Last by name, so it is not the dish the Ratings tests above already rated.
-    dishInHall = (await bob.api.from('menu_items').select('id').eq('dining_hall_id', hall.id).order('name', { ascending: false }).limit(1).single()).data!.id;
-    dishElsewhere = (await bob.api.from('menu_items').select('id').eq('dining_hall_id', other.id).limit(1).single()).data!.id;
+    dishInHall = await dishId('Rand', 'Sweet Potato Sofrito');
+    dishElsewhere = await dishId('Commons', 'Beef Lasagna');
     Object.assign(photo, newPhoto(bob));
     cleanup.push({ member: () => bob, path: photo.path });
     await upload(bob, photo.path);
