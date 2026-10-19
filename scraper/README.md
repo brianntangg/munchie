@@ -58,6 +58,17 @@ file. Changes to the external site's selectors or handlers may require repairs.
 Chrome starts only when the script is run as `python netnutrition_scraper.py`, not when the
 file is imported.
 
+## Tests
+
+The hours logic (`to_24h`, `parse_hours`, `build_hours_sql`, `load_output`) has pytest tests that
+need no browser or network. With `selenium` and `pytest` installed, run from `scraper`:
+
+```sh
+python -m pytest
+```
+
+CI does not run these yet; it only runs the mobile app's jobs.
+
 ## Loading hours into the database
 
 Scraped `hours` reach the app through `dining_halls.hours`. To refresh only hours (about a minute;

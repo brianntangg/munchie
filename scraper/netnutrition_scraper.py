@@ -351,6 +351,10 @@ def to_24h(text):
     if not match:
         raise ValueError(f"Unrecognized time: {text!r}")
 
+    # 12-hour clock: hours run 1-12 and minutes 0-59, so "7:75 AM" or "13:00 PM" is a scraping error.
+    if not 1 <= int(match.group(1)) <= 12 or int(match.group(2)) > 59:
+        raise ValueError(f"Unrecognized time: {text!r}")
+
     hour = int(match.group(1)) % 12
     minute = int(match.group(2))
 
