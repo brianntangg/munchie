@@ -47,8 +47,8 @@ Status reflects the `main` branch. Update this table as features land.
 
 | Feature | Description | Status |
 | --- | --- | --- |
-| Dish ratings | Select a menu item and rate it; invalid scores are rejected by the database | Planned |
-| Aggregate ratings | Average ratings shown for dishes and dining halls | Planned |
+| Dish ratings | Select a menu item and rate it; invalid scores are rejected by the database | In progress: database and app functions built; rating screen planned |
+| Aggregate ratings | Average ratings shown for dishes and dining halls | In progress: dish averages available to the app; not shown yet |
 
 ### Social
 

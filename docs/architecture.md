@@ -21,6 +21,7 @@ to `src/` in `tsconfig.json`; restart Metro after changing aliases or entry poin
 | `lib/auth.tsx` | Session restoration, auth events, foreground token refresh |
 | `lib/supabase.ts` | Client configuration and persistent session storage |
 | `lib/posts.ts` | Joined post queries, signed photo URLs, upload/insert workflow |
+| `lib/ratings.ts` | Score validation (whole numbers 1–5), submit or replace a dish rating, the current user's score, dish averages |
 | `lib/database.types.ts` | Generated database types; regenerate after schema changes |
 
 ## Authentication and data flow
@@ -46,6 +47,7 @@ protection is a UI convenience, not a substitute for database permissions.
 | `dining_halls` | Seeded ID/name reference list plus weekly `hours` (scraped from NetNutrition, loaded by migration); members read; app clients cannot write |
 | `menu_items` | Dish name and optional station/category per dining hall, one row per dish per hall; members read; app clients cannot write (the menu importer loads them) |
 | `posts` | Author, hall, photo path, caption (up to 280 characters), server timestamp; members read and create their own posts |
+| `ratings` | Author, menu item, score (whole number 1–5), server timestamps; one rating per member per dish; members read all ratings and create or change only their own score; no deletes |
 | `food-photos` bucket | Private JPEGs up to 5 MB; members read; uploads must be in the current user's folder |
 
 Posts require an existing uploaded photo at `user-id/post-id.jpg`. Clients cannot
@@ -97,8 +99,27 @@ See [Supabase's migration guide](https://supabase.com/docs/guides/local-developm
 
 ## Hosted development
 
-A hosted project lets teammates share data without keeping one developer's Mac
-running. This has not been deployed or verified as part of local setup.
+The web app is hosted at <https://brianntangg.github.io/munchie>, backed by a
+hosted Supabase project. CI deploys it on every merge to `main` (see the
+[pipeline](pipeline.md#continuous-delivery)). The app reads the project URL and
+publishable key from the repository Actions variables `EXPO_PUBLIC_SUPABASE_URL`
+and `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY`.
+
+The hosted database holds only real data. Keep it that way:
+
+- Apply schema changes with `npx --yes supabase db push`. Never run
+  `supabase db push --include-seed` or `supabase db reset --linked`; `seed.sql`
+  holds demo dishes for local development only.
+- Migrations do not reach the hosted database automatically. After merging a pull
+  request that adds one, run `npx --yes supabase db push --dry-run`, then
+  `npx --yes supabase db push`, so the deployed app never queries columns that do
+  not exist yet.
+- Integration tests run only against local Supabase. `apps/mobile/scripts/helpers.ts`
+  refuses non-localhost URLs, so they cannot create test accounts in the hosted project.
+- Only the publishable key goes in GitHub variables or the app. The service-role
+  key goes only in Actions secrets, for the menu sync job.
+
+To set up a new hosted project (for example, a fresh copy for another team):
 
 1. Create a development project in the [Supabase dashboard](https://supabase.com/dashboard).
 2. From the repository root, run `npx --yes supabase login`, then
@@ -112,6 +133,8 @@ running. This has not been deployed or verified as part of local setup.
 6. Set the app's URL and publishable key to that hosted project, restart Expo,
    and repeat the two-user acceptance flow with real campus mailboxes.
 
+7. Set the repository variables above and enable GitHub Pages with the source
+   **GitHub Actions**; the next merge to `main` deploys the site.
+
 Local accounts and photos do not automatically transfer to the hosted project.
-The local integration-test script intentionally refuses hosted URLs. Use the
-manual checklist for a hosted demo.
+Use the manual checklist for a hosted demo.
