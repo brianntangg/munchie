@@ -39,7 +39,7 @@ Status reflects the `main` branch. Update this table as features land.
 | Feature | Description | Status |
 | --- | --- | --- |
 | Hall pages | Each dining hall lists only the posts made there | Built |
-| Open/closed status | Each hall shows whether it is currently open, based on its operating hours | Planned |
+| Open/closed status | Each hall shows whether it is currently open, based on its operating hours | Done: Dining tab shows open/closed from scraped hours |
 | Live menus | Menus synced on a schedule from NetNutrition and attached to the correct hall | Planned |
 | Meal posting windows | Posting limited to the meal periods a hall is serving | Planned |
 

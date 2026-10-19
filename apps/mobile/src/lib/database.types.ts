@@ -25,13 +25,13 @@ export type Database = {
           Tables: {
             "dining_halls": {
                   Row: {
-                    "id": string,"name": string
+                    "hours": Json | null,"id": string,"name": string
                   }
                   Insert: {
-                    "id"?: string,"name": string
+                    "hours"?: Json | null,"id"?: string,"name": string
                   }
                   Update: {
-                    "id"?: string,"name"?: string
+                    "hours"?: Json | null,"id"?: string,"name"?: string
                   }
                   Relationships: [
 

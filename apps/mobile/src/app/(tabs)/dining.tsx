@@ -2,9 +2,10 @@ import { useCallback, useState } from 'react';
 import { Link, useFocusEffect } from 'expo-router';
 import { Text } from 'react-native';
 import { Banner, Button, Card, LoadingSpinner, Screen } from '@/components/ui';
+import { hallStatus } from '@/lib/hours';
 import { message, supabase } from '@/lib/supabase';
 import type { Tables } from '@/lib/database.types';
-import { type } from '@/theme';
+import { colors, type } from '@/theme';
 export default function DiningScreen() {
   const [halls, setHalls] = useState<Tables<'dining_halls'>[]>([]);
   const [error, setError] = useState('');
@@ -21,6 +22,6 @@ export default function DiningScreen() {
   // eslint-disable-next-line react-hooks/exhaustive-deps -- Changing attempt intentionally reruns the focused request after Retry.
   }, [attempt]));
   return <Screen><Text style={type.title}>Dining halls</Text><Text style={type.caption}>Explore meals shared across campus.</Text><Banner message={error} />
-    {loading ? <LoadingSpinner /> : error ? <Button label="Retry" onPress={() => setAttempt((n) => n + 1)} /> : halls.length ? halls.map((hall) => <Card key={hall.id}><Text style={type.heading}>{hall.name}</Text><Link href={{ pathname: '/dining/[id]', params: { id: hall.id, name: hall.name } }}>View recent meals →</Link></Card>) : <Text style={type.body}>No dining halls available.</Text>}
+    {loading ? <LoadingSpinner /> : error ? <Button label="Retry" onPress={() => setAttempt((n) => n + 1)} /> : halls.length ? halls.map((hall) => { const status = hallStatus(hall.hours); return <Card key={hall.id}><Text style={type.heading}>{hall.name}</Text>{status ? <Text style={[type.caption, { color: status.open ? colors.success : colors.danger }]}>{status.open ? '● ' : '○ '}{status.label}</Text> : null}<Link href={{ pathname: '/dining/[id]', params: { id: hall.id, name: hall.name } }}>View recent meals →</Link></Card>; }) : <Text style={type.body}>No dining halls available.</Text>}
   </Screen>;
 }

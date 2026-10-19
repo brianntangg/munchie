@@ -61,6 +61,46 @@ describe('Sign-in and access', () => {
   });
 });
 
+describe('Dining hall hours', () => {
+  const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  const readHours = (member: Member) => member.api.from('dining_halls').select('id, name, hours').order('name');
+
+  test('members can read every hall\'s weekly hours', async () => {
+    const { data, error } = await alice.api.from('dining_halls').select('id, name, hours').order('name');
+    expect(error).toBeNull();
+    expect(data?.length).toBeGreaterThan(0);
+    for (const hall of data!) {
+      expect(Object.keys(hall.hours ?? {}).sort()).toEqual([...days].sort());
+      for (const shifts of Object.values(hall.hours) as string[][][]) {
+        for (const [open, close] of shifts) {
+          expect(open).toMatch(/^\d{2}:\d{2}$/);
+          expect(close).toMatch(/^\d{2}:\d{2}$/);
+        }
+      }
+    }
+  });
+
+  test('members cannot change a hall\'s hours, and they stay as they were', async () => {
+    const { data: before } = await readHours(alice);
+    const hall = before![0];
+    for (const actor of [alice, bob]) {
+      expect((await actor.api.from('dining_halls').update({ hours: null }).eq('id', hall.id)).error?.code).toBe('42501');
+      expect((await actor.api.from('dining_halls').update({ hours: { Monday: [] } }).eq('id', hall.id)).error?.code).toBe('42501');
+    }
+    const { data: after } = await readHours(bob);
+    expect(after).toEqual(before);
+  });
+
+  test('members cannot add or remove halls', async () => {
+    expect((await alice.api.from('dining_halls').insert({ name: `Test hall ${run}`, hours: null })).error?.code).toBe('42501');
+    expect((await alice.api.from('dining_halls').delete().eq('id', halls[0].id)).error?.code).toBe('42501');
+  });
+
+  test('denies anonymous hours reads', async () => {
+    expect((await anonymous.from('dining_halls').select('hours')).error).not.toBeNull();
+  });
+});
+
 describe('Menu items', () => {
   test('members can read the seeded menu items with their dining hall', async () => {
     const { data, error } = await alice.api.from('menu_items').select('id, name, dining_halls!inner(name)').limit(5);
