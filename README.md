@@ -8,6 +8,8 @@ authentication, PostgreSQL, and private image storage.
 
 ## Start here
 
+- **Try it:** <https://brianntangg.github.io/munchie>. Sign in with your
+  `@vanderbilt.edu` email; the code arrives in your real inbox.
 - [Local setup](docs/local-development.md): first checkout, browser, physical phone,
   simulators, email codes, and troubleshooting.
 - [Product vision](docs/product-vision.md): goals and the full feature list,
@@ -34,8 +36,9 @@ Friends is a coming-soon screen, and the scraper's output is not yet connected t
 the app. See the [product vision](docs/product-vision.md) for planned features.
 
 Email verification establishes access to a Vanderbilt mailbox, not independently
-verified student enrollment. Local development captures verification emails on
-your computer instead of sending them to real mailboxes.
+verified student enrollment. The [live site](https://brianntangg.github.io/munchie)
+sends real codes to `@vanderbilt.edu` inboxes; local development captures them on
+your computer instead.
 
 ## Repository map
 
@@ -48,7 +51,7 @@ your computer instead of sending them to real mailboxes.
 | `apps/mobile/scripts/` | Local backend integration test |
 | `supabase/` | Local services, migrations, email templates, database tests |
 | `scraper/` | Standalone Python dining scraper and captured menu data |
-| `.github/workflows/ci.yml` | CI/CD: lint, typecheck, unit tests with a coverage gate, integration tests against local Supabase, coverage report, scraper lint and tests; web build on merge and a release on sprint tags |
+| `.github/workflows/ci.yml` | CI/CD: lint, typecheck, unit tests with a coverage gate, integration tests against local Supabase, coverage report, scraper lint and tests; web build and GitHub Pages deploy on merge, and a release on sprint tags |
 | `docs/pipeline.md`, `docs/integration-tests.md` | Pipeline stages and delivery; what each integration test covers |
 
 ## Development
@@ -66,16 +69,18 @@ or the complete phone flow. See the [known gaps](docs/testing.md#known-gaps).
 Every merge to `main` uploads a web build named `munchie-web-<commit>` to its
 [Actions run](https://github.com/brianntangg/munchie/actions/workflows/ci.yml), and each
 sprint tag (for example `sprint3`) publishes it as a
-[release](https://github.com/brianntangg/munchie/releases). The build talks to local
-Supabase, so start that first:
+[release](https://github.com/brianntangg/munchie/releases). The build talks to the
+same hosted Supabase project as the [live site](https://brianntangg.github.io/munchie),
+so it needs no local backend:
 
 ```sh
-npx supabase start                   # from the repository root; Docker must be running
 unzip munchie-web-sprint3.zip -d munchie-web
 npx serve -s munchie-web             # open the printed URL
 ```
 
-Sign-in codes arrive in the local inbox at <http://localhost:54324>.
+Sign in with a real `@vanderbilt.edu` address; the code arrives in that inbox.
+Data you create there is shared with the hosted site. For a fully local build,
+follow the [setup guide](docs/local-development.md) instead.
 
 ## Contributing
 

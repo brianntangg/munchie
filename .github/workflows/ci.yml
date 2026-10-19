@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
 
 # Stages run in order and stop at the first failure:
-# install -> lint -> typecheck -> unit tests (coverage gate) -> integration tests -> coverage report -> build -> release (tags only).
+# install -> lint -> typecheck -> unit tests (coverage gate) -> integration tests -> coverage report -> build -> deploy to Pages (main only) / release (tags only).
 jobs:
   typecheck:
     name: Lint and typecheck mobile app
@@ -201,6 +201,40 @@ jobs:
           name: munchie-web-${{ github.ref_type == 'tag' && github.ref_name || github.sha }}
           path: apps/mobile/dist
           retention-days: 90
+
+      - name: Export GitHub Pages build
+        # Only once a hosted project is configured; the site is served from /munchie.
+        if: vars.EXPO_PUBLIC_SUPABASE_URL != ''
+        run: |
+          EXPO_BASE_URL=/munchie npx expo export --platform web --output-dir dist-pages
+          cp dist-pages/index.html dist-pages/404.html
+
+      - name: Upload GitHub Pages artifact
+        if: vars.EXPO_PUBLIC_SUPABASE_URL != ''
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: apps/mobile/dist-pages
+
+  deploy:
+    name: Deploy to GitHub Pages
+    # The github-pages environment only accepts main, so tag runs skip this.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.EXPO_PUBLIC_SUPABASE_URL != ''
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+
+    steps:
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4
 
   release:
     name: Publish release
