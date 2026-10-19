@@ -12,7 +12,7 @@ describe('getHallStatus', () => {
     expect(getHallStatus(day, at('2026-10-14T12:00:00Z'))).toEqual({ open: true, label: 'Open until 8 PM' });
     expect(getHallStatus(day, at('2026-10-14T11:59:00Z'))).toEqual({ open: false, label: 'Closed · opens 7 AM' });
     expect(getHallStatus(day, at('2026-10-15T00:59:00Z'))?.open).toBe(true); // 7:59 PM
-    expect(getHallStatus(day, at('2026-10-15T01:00:00Z'))).toEqual({ open: false, label: 'Closed' }); // 8:00 PM
+    expect(getHallStatus(day, at('2026-10-15T01:00:00Z'))).toEqual({ open: false, label: 'Closed · opens 7 AM tomorrow' }); // 8:00 PM
   });
 
   it('handles a split schedule', () => {
@@ -34,7 +34,40 @@ describe('getHallStatus', () => {
 
   it('shows closed all day when a weekday has no shifts', () => {
     const noWed: WeekHours = [[[420, 1200]], [[420, 1200]], [[420, 1200]], [], [[420, 1200]], [[420, 1200]], [[420, 1200]]];
-    expect(getHallStatus(noWed, at('2026-10-14T18:00:00Z'))).toEqual({ open: false, label: 'Closed' });
+    expect(getHallStatus(noWed, at('2026-10-14T18:00:00Z'))).toEqual({ open: false, label: 'Closed · opens 7 AM tomorrow' });
+  });
+
+  describe('when it next opens after the last shift', () => {
+    // Index 0 = Sunday. Pass the open days; every other day is closed.
+    const openOn = (days: Record<number, [number, number][]>): WeekHours => Array.from({ length: 7 }, (_, d) => days[d] ?? []);
+
+    it('says tomorrow when it opens the next day', () => {
+      expect(getHallStatus(day, at('2026-10-15T02:00:00Z'))?.label).toBe('Closed · opens 7 AM tomorrow'); // Wed 9 PM
+    });
+
+    it('names the weekday when it stays closed tomorrow', () => {
+      const hours = openOn({ 3: [[420, 1200]], 6: [[480, 1200]] }); // Wed and Sat
+      expect(getHallStatus(hours, at('2026-10-15T02:00:00Z'))?.label).toBe('Closed · opens Sat 8 AM'); // Wed 9 PM
+    });
+
+    it('wraps around the week to the same weekday', () => {
+      const hours = openOn({ 1: [[420, 1200]] }); // Mondays only
+      expect(getHallStatus(hours, at('2026-10-20T02:00:00Z'))?.label).toBe('Closed · opens Mon 7 AM'); // Mon 9 PM
+    });
+
+    it("uses the next day's earliest shift, whatever order the shifts are in", () => {
+      const hours = openOn({ 3: [[420, 1200]], 4: [[1020, 1260], [420, 600]] });
+      expect(getHallStatus(hours, at('2026-10-15T02:00:00Z'))?.label).toBe('Closed · opens 7 AM tomorrow');
+    });
+
+    it('picks the soonest opening later today, whatever order the shifts are in', () => {
+      const hours = openOn({ 3: [[1260, 1380], [1020, 1140]] }); // Wed 5 PM and 9 PM
+      expect(getHallStatus(hours, at('2026-10-14T17:00:00Z'))?.label).toBe('Closed · opens 5 PM'); // Wed noon
+    });
+
+    it('just says Closed for a hall with no shifts all week', () => {
+      expect(getHallStatus(openOn({}), at('2026-10-14T18:00:00Z'))).toEqual({ open: false, label: 'Closed' });
+    });
   });
 
   it('returns null for a hall with no known hours', () => {
@@ -72,7 +105,7 @@ describe('parseHours', () => {
 
   it('feeds hallStatus; unknown hours give no status', () => {
     expect(hallStatus(stored(), at('2026-10-14T12:00:00Z'))).toEqual({ open: true, label: 'Open until 3 PM' });
-    expect(hallStatus(stored(), at('2026-10-17T12:00:00Z'))).toEqual({ open: false, label: 'Closed' }); // Saturday
+    expect(hallStatus(stored(), at('2026-10-17T12:00:00Z'))).toEqual({ open: false, label: 'Closed · opens 8 AM tomorrow' }); // Saturday, closed; Sunday opens
     expect(hallStatus(null)).toBeNull();
   });
 });
