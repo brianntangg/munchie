@@ -46,7 +46,7 @@ The output file has two keys:
   NetNutrition's "Hours of Operation" dialog, as `{"Monday": [["07:00", "15:00"]], ...}` with
   24-hour times, one entry per split shift, and an empty list for a closed day. A close time at or
   before the open time means the shift ends after midnight. A location with no menus published
-  right now still has hours. A location whose dialog could not be read is left out.
+  right now still has hours. If a location's dialog cannot be read on a later run, its previously saved hours are kept.
 
 The output does not include complete nutrition/allergen data or populate app ratings or
 dining-hall records.

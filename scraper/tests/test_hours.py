@@ -168,3 +168,48 @@ class TestLoadOutput:
     def test_reads_the_older_bare_list_of_menus(self, tmp_path):
         (tmp_path / scraper.OUTPUT_FILE).write_text(json.dumps([{"meal": "Lunch"}]))
         assert load_output() == ([{"meal": "Lunch"}], {})
+
+
+class TestScrapeHours:
+    """scrape_hours with the browser and the hours dialog faked out."""
+
+    class FakeDriver:
+        def get(self, url):
+            pass
+
+    class FakeWait:
+        def until(self, condition):
+            pass
+
+    @pytest.fixture(autouse=True)
+    def fake_browser(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        monkeypatch.setattr(scraper, "driver", self.FakeDriver())
+        monkeypatch.setattr(scraper, "wait", self.FakeWait())
+        monkeypatch.setattr(scraper.time, "sleep", lambda seconds: None)
+        monkeypatch.setattr(scraper, "get_locations", lambda: [{"unit_id": 1, "name": RAND}, {"unit_id": 2, "name": COMMONS}])
+
+    def saved(self):
+        with open(scraper.OUTPUT_FILE, encoding="utf-8") as f:
+            return json.load(f)
+
+    def test_saves_fresh_hours_for_every_location_and_keeps_the_menus(self, monkeypatch, tmp_path):
+        (tmp_path / scraper.OUTPUT_FILE).write_text(json.dumps({"hours": {}, "menus": [{"meal": "Lunch"}]}))
+        fresh = {1: week(Monday=[["07:00", "15:00"]]), 2: week(Monday=[["08:00", "16:00"]])}
+        monkeypatch.setattr(scraper, "get_hours", lambda unit_id: fresh[unit_id])
+        scraper.scrape_hours()
+        assert self.saved() == {"hours": {RAND: fresh[1], COMMONS: fresh[2]}, "menus": [{"meal": "Lunch"}]}
+
+    def test_a_location_that_fails_keeps_its_saved_hours(self, monkeypatch, tmp_path, capsys):
+        old = week(Monday=[["07:00", "15:00"]])
+        new = week(Monday=[["09:00", "17:00"]])
+        (tmp_path / scraper.OUTPUT_FILE).write_text(json.dumps({"hours": {RAND: old, COMMONS: old}, "menus": []}))
+        monkeypatch.setattr(scraper, "get_hours", lambda unit_id: new if unit_id == 1 else None)  # Commons fails
+        scraper.scrape_hours()
+        assert self.saved()["hours"] == {RAND: new, COMMONS: old}
+        assert f"Keeping the saved hours for {COMMONS}" in capsys.readouterr().out
+
+    def test_a_location_that_fails_with_nothing_saved_is_left_out(self, monkeypatch):
+        monkeypatch.setattr(scraper, "get_hours", lambda unit_id: week() if unit_id == 1 else None)
+        scraper.scrape_hours()
+        assert list(self.saved()["hours"]) == [RAND]

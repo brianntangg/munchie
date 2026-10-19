@@ -489,8 +489,10 @@ def scrape_hours():
 
     time.sleep(1)
 
-    menus, _ = load_output()
-    all_hours = {}
+    menus, saved_hours = load_output()
+
+    # Start from the saved hours so a location whose dialog fails this time keeps its old hours.
+    all_hours = dict(saved_hours)
 
     for location in get_locations():
 
@@ -500,6 +502,9 @@ def scrape_hours():
 
         if hours is not None:
             all_hours[location["name"]] = hours
+
+        elif location["name"] in saved_hours:
+            print(f"    Keeping the saved hours for {location['name']}")
 
     save_output(menus, all_hours)
 
@@ -528,7 +533,10 @@ def scrape():
     )
 
     all_data = []
-    all_hours = {}
+
+    # Start from the saved hours so a location whose dialog fails this time keeps its old hours.
+    _, saved_hours = load_output()
+    all_hours = dict(saved_hours)
 
 
     for location_index, location in enumerate(
