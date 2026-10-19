@@ -9,7 +9,7 @@ import { useAuth } from '@/lib/auth';
 import { message, supabase } from '@/lib/supabase';
 import type { Tables } from '@/lib/database.types';
 import { filterDishes, loadMenuItems, type MenuItem } from '@/lib/menu';
-import { canShare, shareLabel, shareMeal } from '@/lib/share-meal';
+import { canPost, postLabel, postWithRating } from '@/lib/post-with-rating';
 import { Button, ErrorText, Field, styles } from '@/components/form-ui';
 import { StarRating } from '@/components/StarRating';
 
@@ -79,11 +79,11 @@ export default function Post() {
     setPhoto(null); setCaption(''); chooseHall(''); setPosted(false); postId.current = null;
   }
   async function submit() {
-    if (!canShare({ posted, hasPhoto: !!photo, hallId, hasDish: !!dish, score }) || submitting.current) return;
+    if (!canPost({ posted, hasPhoto: !!photo, hallId, hasDish: !!dish, score }) || submitting.current) return;
     submitting.current = true; setBusy(true); setError('');
     postId.current ??= randomUUID();
     try {
-      const { ratingError } = await shareMeal({ postId: postId.current, userId, hallId, caption, base64: photo?.base64 ?? '', rating: dish && score !== null ? { menuItemId: dish.id, score } : undefined, alreadyPosted: posted });
+      const { ratingError } = await postWithRating({ postId: postId.current, userId, hallId, caption, base64: photo?.base64 ?? '', rating: dish && score !== null ? { menuItemId: dish.id, score } : undefined, alreadyPosted: posted });
       if (ratingError) { setPosted(true); setError(`Your meal was posted, but your rating was not saved: ${message(ratingError)} Try again, or skip the rating.`); return; }
       reset();
       router.navigate('/');
@@ -116,7 +116,7 @@ export default function Post() {
     </View>}
     <Field label="Caption (optional)" placeholder="What’s good today?" value={caption} onChangeText={setCaption} maxLength={280} multiline editable={!locked} />
     <ErrorText>{error}</ErrorText>
-    <Button title={shareLabel({ busy, posted, hasDish: !!dish })} onPress={submit} disabled={busy || !canShare({ posted, hasPhoto: !!photo, hallId, hasDish: !!dish, score })} />
+    <Button title={postLabel({ busy, posted, hasDish: !!dish })} onPress={submit} disabled={busy || !canPost({ posted, hasPhoto: !!photo, hallId, hasDish: !!dish, score })} />
     {posted && <Button title="Skip rating" secondary disabled={busy} onPress={() => { reset(); router.navigate('/'); }} />}
   </ScrollView></KeyboardAvoidingView></SafeAreaView>;
 }
