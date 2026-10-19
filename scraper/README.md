@@ -35,6 +35,9 @@ run the script by absolute path from a separate output directory instead.
 
 ## Output and limitations
 
+The checked-in `vanderbilt_all_menus.json` is an older snapshot: a bare list of menu records with no
+hours. Running the scraper, or `--hours-only`, rewrites it in the shape below (keeping any saved menus).
+
 The output file has two keys:
 
 - `menus`: one record per menu, with `location`, `unit_id`, `date`, `date_value`, `meal`,
