@@ -22,6 +22,7 @@ to `src/` in `tsconfig.json`; restart Metro after changing aliases or entry poin
 | `lib/auth.tsx` | Session restoration, auth events, foreground token refresh |
 | `lib/supabase.ts` | Client configuration and persistent session storage |
 | `lib/posts.ts` | Joined post queries (including the post's dish and its author's score for it), signed photo URLs, upload/insert workflow |
+| `lib/share-meal.ts` | The post form's logic: publish the post then save its rating (a failed rating never reposts), when the form can be submitted, and the button label |
 | `lib/menu.ts` | A hall's dishes (ordered by station, then name) and the dish search used by the post form |
 | `lib/ratings.ts` | Score validation (whole numbers 1–5), submit or replace a dish rating, the current user's score, dish averages |
 | `lib/database.types.ts` | Generated database types; regenerate after schema changes |

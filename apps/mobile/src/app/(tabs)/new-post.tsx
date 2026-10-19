@@ -8,9 +8,8 @@ import { randomUUID } from 'expo-crypto';
 import { useAuth } from '@/lib/auth';
 import { message, supabase } from '@/lib/supabase';
 import type { Tables } from '@/lib/database.types';
-import { publishPost } from '@/lib/posts';
 import { filterDishes, loadMenuItems, type MenuItem } from '@/lib/menu';
-import { submitRating } from '@/lib/ratings';
+import { canShare, shareLabel, shareMeal } from '@/lib/share-meal';
 import { Button, ErrorText, Field, styles } from '@/components/form-ui';
 import { StarRating } from '@/components/StarRating';
 
@@ -80,22 +79,16 @@ export default function Post() {
     setPhoto(null); setCaption(''); chooseHall(''); setPosted(false); postId.current = null;
   }
   async function submit() {
-    if ((!posted && (!photo || !hallId)) || (dish && score === null) || submitting.current) return;
+    if (!canShare({ posted, hasPhoto: !!photo, hallId, hasDish: !!dish, score }) || submitting.current) return;
     submitting.current = true; setBusy(true); setError('');
-    let published = posted;
+    postId.current ??= randomUUID();
     try {
-      if (!published) {
-        postId.current ??= randomUUID();
-        await publishPost({ id: postId.current, userId, hallId, menuItemId: dish?.id, caption, base64: photo!.base64 });
-        published = true;
-      }
-      if (dish && score !== null) await submitRating({ menuItemId: dish.id, score });
+      const { ratingError } = await shareMeal({ postId: postId.current, userId, hallId, caption, base64: photo?.base64 ?? '', rating: dish && score !== null ? { menuItemId: dish.id, score } : undefined, alreadyPosted: posted });
+      if (ratingError) { setPosted(true); setError(`Your meal was posted, but your rating was not saved: ${message(ratingError)} Try again, or skip the rating.`); return; }
       reset();
       router.navigate('/');
-    } catch (error) {
-      if (published) { setPosted(true); setError(`Your meal was posted, but your rating was not saved: ${message(error)} Try again, or skip the rating.`); }
-      else setError(`${message(error)} Your draft is still here; you can retry.`);
-    } finally { submitting.current = false; setBusy(false); }
+    } catch (error) { setError(`${message(error)} Your draft is still here; you can retry.`); }
+    finally { submitting.current = false; setBusy(false); }
   }
   const locked = busy || posted;
   const { shown, total } = filterDishes(dishes, query);
@@ -123,7 +116,7 @@ export default function Post() {
     </View>}
     <Field label="Caption (optional)" placeholder="What’s good today?" value={caption} onChangeText={setCaption} maxLength={280} multiline editable={!locked} />
     <ErrorText>{error}</ErrorText>
-    <Button title={busy ? 'Please wait…' : posted ? 'Save rating' : dish ? 'Post meal and rating' : 'Post meal'} onPress={submit} disabled={busy || (!posted && (!photo || !hallId)) || (!!dish && score === null)} />
+    <Button title={shareLabel({ busy, posted, hasDish: !!dish })} onPress={submit} disabled={busy || !canShare({ posted, hasPhoto: !!photo, hallId, hasDish: !!dish, score })} />
     {posted && <Button title="Skip rating" secondary disabled={busy} onPress={() => { reset(); router.navigate('/'); }} />}
   </ScrollView></KeyboardAvoidingView></SafeAreaView>;
 }
