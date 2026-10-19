@@ -2,7 +2,7 @@
 export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[]
 
 export type Database = {
-
+  
   "graphql_public": {
           Tables: {
             [_ in never]: never
@@ -34,7 +34,7 @@ export type Database = {
                     "hours"?: Json | null,"id"?: string,"name"?: string
                   }
                   Relationships: [
-
+                    
                   ]
                 },"menu_items": {
                   Row: {
@@ -97,7 +97,7 @@ isOneToOne: false
                     "display_name"?: string,"id"?: string
                   }
                   Relationships: [
-
+                    
                   ]
                 },"ratings": {
                   Row: {
@@ -249,11 +249,12 @@ export type CompositeTypes<
 export const Constants = {
   "graphql_public": {
           Enums: {
-
+            
           }
         },"public": {
           Enums: {
-
+            
           }
         }
 } as const
+
