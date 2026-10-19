@@ -1,47 +1,55 @@
 # Sending sign-in codes to real email addresses
 
-The current local Supabase setup captures email at http://localhost:54324.
-It does not send messages to recipients' real mailboxes. The app already requests
-and verifies codes; real delivery is an Auth/SMTP configuration task.
+The hosted project behind <https://brianntangg.github.io/munchie> sends sign-in
+codes through Gmail SMTP from a dedicated Munchie Gmail account. Local Supabase
+still captures email at http://localhost:54324 and never sends to real mailboxes.
 
-For a shared demo, use a hosted Supabase development project with custom SMTP.
 Supabase's default hosted email service only delivers to authorized project-team
-addresses and has restrictive limits; it is not general student email delivery.
+addresses and has restrictive limits, so custom SMTP is required for testers.
 See [Supabase SMTP setup](https://supabase.com/docs/guides/auth/auth-smtp).
 
 ## Configure delivery
 
 1. Set up the hosted project and apply migrations using the
    [hosted development instructions](architecture.md#hosted-development).
-2. Choose an SMTP provider, such as Resend, and verify a sending domain you
-   control using its required DNS records. The sender can be an address on your
-   app's domain; recipients remain Vanderbilt addresses. Do not use Vanderbilt
-   as the sending domain unless you have authorization and DNS control.
-3. In the Supabase project's Authentication email/SMTP settings, enable custom
-   SMTP and enter the provider's host, port, username, password, sender email,
-   and sender name (`Munchie`). Use the exact settings from the provider.
-   For an example, follow [Resend's Supabase guide](https://resend.com/docs/send-with-supabase-smtp).
-4. Keep email confirmation enabled. In the **Confirm signup** and **Magic Link**
-   email templates, paste the contents of
+2. Create a dedicated personal Gmail account for sending (not a teammate's own
+   mailbox). Turn on 2-Step Verification, then create an
+   [app password](https://myaccount.google.com/apppasswords) named `Supabase`.
+3. In the Supabase dashboard, **Authentication → Emails → SMTP Settings**, enable
+   custom SMTP: host `smtp.gmail.com`, port `587`, the Gmail address as both
+   sender email and username, the app password, and sender name `Munchie`.
+   Supabase warns that Gmail is a personal provider; that is expected. The app
+   password belongs only in this setting; never commit it or put it in an
+   `EXPO_PUBLIC_*` variable.
+4. **Authentication → Emails → Templates** unlocks once custom SMTP is enabled.
+   In **Confirm signup** (subject `Your Munchie verification code`) and
+   **Magic Link** (subject `Your Munchie sign-in code`), paste the contents of
    [`supabase/templates/code.html`](../supabase/templates/code.html).
    The `{{ .Token }}` variable displays the sign-in code. The app uses code entry,
    so sending only a magic link will not match its UI.
-5. In `apps/mobile/.env.local`, set the hosted project's HTTPS URL and publishable
-   key. Restart Expo. Keep SMTP credentials exclusively in server/provider
-   settings; never place them in `EXPO_PUBLIC_*` variables or commit them.
-6. Request a code using your actual `@vanderbilt.edu` address, read the message,
-   and enter the code in Munchie. Test both a new account and a returning user.
+5. **Authentication → Rate Limits**: set emails sent per hour to `60`. Gmail
+   allows about 500 messages a day.
+6. Request a code on the live site with your actual `@vanderbilt.edu` address,
+   read the message, and enter the code. Test both a new account and a returning user.
+
+To try hosted delivery from a local Expo session instead, set the hosted URL and
+publishable key in `apps/mobile/.env.local` and restart Expo; switch back to local
+Supabase before running the integration tests.
+
+For higher volume or better deliverability, a transactional provider such as
+[Resend](https://resend.com/docs/send-with-supabase-smtp) can replace Gmail, but
+it needs a sending domain you control. Do not use Vanderbilt as the sending
+domain without authorization.
 
 The app's Vanderbilt domain restriction still applies when custom SMTP is enabled.
-Your Google/Expo login does not send or verify Munchie codes. Local test users do
-not exist in the hosted database unless you create accounts there separately.
+Local test users do not exist in the hosted database, and should never be created there.
 
 ## If the message does not arrive
 
 - Confirm the app is pointing at the hosted project, not local Supabase.
-- Check Supabase Auth logs and the provider's delivery logs, then the recipient's
-  junk folder or university mail quarantine.
-- Confirm the sender domain is verified and the provider permits that recipient.
+- Check Supabase Auth logs and the sending Gmail account's Sent folder, then the
+  recipient's junk folder or Vanderbilt's Microsoft 365 quarantine.
+- If Gmail rejects the login, recreate the app password and confirm 2-Step Verification is on.
 - Inspect project and provider rate limits before repeatedly requesting codes.
 - If you receive a link without a code, update both email templates above.
 

@@ -42,3 +42,6 @@ yarn-error.*
 
 # Jest coverage reports
 coverage/
+
+# GitHub Pages export (CI)
+dist-pages/
