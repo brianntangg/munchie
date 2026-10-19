@@ -1,4 +1,4 @@
--- Weekly hours of operation per dining hall, loaded from the NetNutrition scraper (see scraper/export_hall_hours.py).
+-- Weekly hours of operation per dining hall, loaded from the NetNutrition scraper (see scraper/netnutrition_scraper.py --export-sql).
 -- Shape: {"Monday": [["07:00", "15:00"]], ...} for all seven days; an empty list is a closed day.
 -- A close at or before the open means the shift ends after midnight. Null means hours are unknown.
 alter table public.dining_halls add column hours jsonb;
