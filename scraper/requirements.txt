@@ -1,5 +1,4 @@
 selenium==4.51.0
-
-# Development: lint and tests (CI runs both)
+supabase==2.33.0
 pytest==9.1.1
 ruff==0.17.1
