@@ -77,6 +77,10 @@ def main() -> int:
         print(f"Menu import failed: {error}", file=sys.stderr)
         return 1
 
+    if count == 0:
+        print("No menu items found; the scrape may have failed", file=sys.stderr)
+        return 1
+
     print(f"Imported {count} menu items")
     return 0
 

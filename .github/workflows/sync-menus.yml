@@ -10,6 +10,7 @@ permissions:
 
 jobs:
   sync:
+    environment: production
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
