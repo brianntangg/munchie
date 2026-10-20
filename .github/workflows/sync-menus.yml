@@ -32,9 +32,9 @@ jobs:
         working-directory: scraper
         run: xvfb-run --auto-servernum python netnutrition_scraper.py
 
-      - name: Upload menu JSON to Supabase Storage
+      - name: Import menus into Supabase table
         working-directory: scraper
         env:
-          SUPABASE_URL: ${{ vars.EXPO_PUBLIC_SUPABASE_URL }}
+          EXPO_PUBLIC_SUPABASE_URL: ${{ vars.EXPO_PUBLIC_SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-        run: python upload_menu_json.py vanderbilt_all_menus.json
+        run: python import_menus.py vanderbilt_all_menus.json
