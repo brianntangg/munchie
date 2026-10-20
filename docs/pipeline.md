@@ -111,6 +111,27 @@ pull request runs cannot read them:
 If any of them is missing, the migration job fails with an error naming it and
 the site does not deploy.
 
+## Walkthrough: red, green, deploy
+
+The life of one pull request, using a lint error as the example.
+
+1. **Red.** Push a commit that adds an unused import to a Python file. On the pull
+   request's **Checks** tab, **Scraper lint and tests** shows a red X: ruff reports
+   `F401 imported but unused`, even though every test still passes. **Details** opens the
+   log with the failing line. Pull requests never build or deploy, and `main` cannot be
+   merged into while a required check is red.
+2. **Green.** Remove the import and push. The same pull request re-runs every check and
+   they all pass. A new push dismisses earlier approvals, so ask for the review after the
+   last push.
+3. **Merge.** Once approved, use **Squash and merge**. The push to `main` runs the same
+   checks plus the stages pull requests skip. On the run's summary page:
+   - **Build web artifact** uploads `munchie-web-<commit>`, listed under **Artifacts**.
+   - **Migrate hosted database** applies any pending migrations; with none, it does nothing.
+   - **Deploy to GitHub Pages** publishes the site and links to it.
+
+A walkthrough pull request should not add a migration, because merging it applies the
+migration to the hosted database.
+
 ## Protecting `main`
 
 Branch protection on `main` requires:
