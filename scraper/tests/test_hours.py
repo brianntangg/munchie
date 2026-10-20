@@ -5,7 +5,6 @@ Importing the scraper does not start Chrome, but it does import selenium, so ins
 Run from the scraper directory:  python -m pytest
 """
 import json
-import os
 
 import pytest
 
