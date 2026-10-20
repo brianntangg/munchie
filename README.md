@@ -51,7 +51,7 @@ your computer instead.
 | `apps/mobile/scripts/` | Local backend integration test |
 | `supabase/` | Local services, migrations, email templates, database tests |
 | `scraper/` | Standalone Python dining scraper and captured menu data |
-| `.github/workflows/ci.yml` | CI/CD: lint, typecheck, unit tests with a coverage gate, integration tests against local Supabase, coverage report, scraper lint and tests; web build and GitHub Pages deploy on merge, and a release on sprint tags |
+| `.github/workflows/ci.yml` | CI/CD: lint, typecheck, unit tests with a coverage gate, integration tests against local Supabase, coverage report, scraper lint and tests; web build, hosted database migrations, and GitHub Pages deploy on merge, and a release on sprint tags |
 | `docs/pipeline.md`, `docs/integration-tests.md` | Pipeline stages and delivery; what each integration test covers |
 
 ## Development
