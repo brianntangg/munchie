@@ -8,7 +8,7 @@ For what the integration tests cover, see [integration tests](integration-tests.
 | Event | What runs |
 | --- | --- |
 | Pull request (opened or updated) | All checks; no build |
-| Merge to `main` | All checks, the web build artifact, then a deploy to GitHub Pages |
+| Merge to `main` | All checks, the web build artifact, hosted database migrations, then a deploy to GitHub Pages |
 | Sprint tag pushed (e.g. `sprint3`) | All checks, the web build, then a GitHub release |
 
 ## Stages
@@ -36,12 +36,13 @@ flowchart LR
 
   coverage[Coverage report<br/>on the run summary]
   build[Build web artifact<br/>munchie-web-commit]
+  migrate[Migrate hosted database<br/>supabase db push]
   deploy[Deploy to GitHub Pages<br/>brianntangg.github.io/munchie]
   release[Publish release<br/>zipped build]
 
   trigger --> unit --> integration --> coverage --> build
   trigger --> scraper --> build
-  build -- main only --> deploy
+  build -- main only --> migrate --> deploy
   build -- sprint tag only --> release
 ```
 
@@ -52,14 +53,16 @@ flowchart LR
 | Coverage report | Posts a statements/branches/functions/lines table to the run summary | Integration tests failed, so it is skipped |
 | Scraper lint and tests | Installs pinned Python requirements, runs ruff, then pytest on saved pages | Lint errors or a failing parser test |
 | Build web artifact (merge or tag only) | Exports the web app and uploads it as `munchie-web-<commit>` (or `munchie-web-<tag>`), plus a `/munchie` build for GitHub Pages | Any check failed, so it is skipped |
-| Deploy to GitHub Pages (main only) | Publishes the Pages build to <https://brianntangg.github.io/munchie> | The build failed, so it is skipped |
+| Migrate hosted database (main only) | Lists pending migrations, then applies them to the hosted Supabase project with `supabase db push` | A credential in the `production` environment is missing, or a migration fails against the hosted database |
+| Deploy to GitHub Pages (main only) | Publishes the Pages build to <https://brianntangg.github.io/munchie> | The build or the migration failed, so it is skipped and the previous site stays up |
 | Publish release (tag only) | Zips the build and publishes it as a GitHub release named after the tag | The build failed, so it is skipped |
 
 Unit and integration tests are separate jobs, so a red check shows which layer
 broke. Tests never call paid or external services: the backend runs in the CI
 runner, email codes are read from Supabase's local inbox, and scraper tests use
-saved pages instead of the live NetNutrition site. The repository holds no
-secrets; the deploy uses GitHub's built-in Pages token.
+saved pages instead of the live NetNutrition site. The only secrets are the
+hosted database credentials, which only the migration job can read (see
+[hosted migrations](#hosted-migrations)); the deploy uses GitHub's built-in Pages token.
 
 ## Continuous delivery
 
@@ -80,8 +83,33 @@ deploy. The Pages build sets `EXPO_BASE_URL=/munchie` (read by
 stays at the root.
 
 Tests never touch the hosted project; database changes reach it only through
-`supabase db push`, never with seed data (see
+the migration job, never with seed data (see
 [hosted development](architecture.md#hosted-development)).
+
+### Hosted migrations
+
+On each merge to `main`, the migration job applies new migrations to the hosted
+database after the build and before the Pages deploy. If a migration fails, the
+deploy is skipped and the previous site keeps running against the unchanged
+database. Fix the migration in a new pull request; a merged migration is never edited.
+
+The previous site runs against the new schema for the minute between the
+migration and the deploy, so migrations must be additive (see
+[database changes](architecture.md#database-changes)). Only one migration job
+runs at a time; a queued run applies every pending migration.
+
+The job reads its credentials from the `production` environment
+(**Settings → Environments**), which accepts deployments only from `main`, so
+pull request runs cannot read them:
+
+| Name | Kind | Value |
+| --- | --- | --- |
+| `SUPABASE_ACCESS_TOKEN` | Secret | A personal access token from [Supabase account tokens](https://supabase.com/dashboard/account/tokens) |
+| `SUPABASE_DB_PASSWORD` | Secret | The hosted database password (**Project Settings → Database**) |
+| `SUPABASE_PROJECT_REF` | Variable | The project ref, the subdomain in `EXPO_PUBLIC_SUPABASE_URL` |
+
+If any of them is missing, the migration job fails with an error naming it and
+the site does not deploy.
 
 ## Protecting `main`
 

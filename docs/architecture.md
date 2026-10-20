@@ -98,6 +98,12 @@ schema changes instead of rewriting migrations already applied by teammates.
 Keep the existing access controls when adding features. Prefer reproducible
 migrations over changes made only through Studio.
 
+Merging a migration applies it to the hosted database before the new site deploys
+(see the [pipeline](pipeline.md#continuous-delivery)), so for a short time the
+previous site runs against the new schema. Keep migrations additive: add tables
+and columns rather than renaming or dropping them in the same pull request that
+changes the app. Drop what the app no longer uses in a later pull request.
+
 See [Supabase's migration guide](https://supabase.com/docs/guides/local-development/database-migrations).
 
 ## Hosted development
@@ -110,13 +116,12 @@ and `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY`.
 
 The hosted database holds only real data. Keep it that way:
 
-- Apply schema changes with `npx --yes supabase db push`. Never run
+- CI applies migrations to the hosted database on every merge to `main`, before
+  the site deploys. Do not push migrations by hand, and never run
   `supabase db push --include-seed` or `supabase db reset --linked`; `seed.sql`
   holds demo dishes for local development only.
-- Migrations do not reach the hosted database automatically. After merging a pull
-  request that adds one, run `npx --yes supabase db push --dry-run`, then
-  `npx --yes supabase db push`, so the deployed app never queries columns that do
-  not exist yet.
+- Do not change the hosted schema in the dashboard. Migrations are the only source
+  of truth, and a change made there can make the next CI migration fail.
 - Integration tests run only against local Supabase. `apps/mobile/scripts/helpers.ts`
   refuses non-localhost URLs, so they cannot create test accounts in the hosted project.
 - Only the publishable key goes in GitHub variables or the app. The service-role
@@ -137,7 +142,10 @@ To set up a new hosted project (for example, a fresh copy for another team):
    and repeat the two-user acceptance flow with real campus mailboxes.
 
 7. Set the repository variables above and enable GitHub Pages with the source
-   **GitHub Actions**; the next merge to `main` deploys the site.
+   **GitHub Actions**.
+8. Create the `production` environment and its secrets so CI can apply migrations
+   (see [hosted migrations](pipeline.md#hosted-migrations)); the next merge to
+   `main` migrates the database and deploys the site.
 
 Local accounts and photos do not automatically transfer to the hosted project.
 Use the manual checklist for a hosted demo.
