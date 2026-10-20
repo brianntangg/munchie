@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   sync:
@@ -32,17 +32,9 @@ jobs:
         working-directory: scraper
         run: xvfb-run --auto-servernum python netnutrition_scraper.py
 
-      - name: Import menus into Supabase
+      - name: Upload menu JSON to Supabase Storage
         working-directory: scraper
         env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_URL: ${{ vars.EXPO_PUBLIC_SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-        run: python import_menus.py
-
-      - name: Commit updated JSON snapshot
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add scraper/vanderbilt_all_menus.json
-          git diff --cached --quiet || git commit -m "chore: update dining menus"
-          git push
+        run: python upload_menu_json.py vanderbilt_all_menus.json
