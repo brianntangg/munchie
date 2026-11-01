@@ -114,6 +114,7 @@ users inside one transaction that rolls back.
 | --- | --- | --- | --- |
 | `campus_email.test.sql` | 12 | S5 | The campus email rule: accepted addresses, letter case, and rejected look-alike domains, subdomains, empty or spaced local parts, and extra `@` signs |
 | `membership.test.sql` | 9 | S4, S5 | Only verified campus accounts are members: unverified accounts can't read data or create profiles, emails can't change to another domain, and profile IDs can't be reassigned |
+| `follows.test.sql` | 11 | S4, S5 | No self-follows or duplicate follows, members follow and unfollow only as themselves, and unverified or signed-out users can't read or follow |
 | `menu_items.test.sql` | 11 | S4 | One dish name per hall, a dish must belong to a real hall, name length limits, and only members can read dishes (nobody in the app can add, change, or delete them) |
 
 ## Keeping this up to date

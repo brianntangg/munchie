@@ -26,6 +26,7 @@ to `src/` in `tsconfig.json`; restart Metro after changing aliases or entry poin
 | `lib/post-with-rating.ts` | The post form's logic: publish the post then save its rating (a failed rating never reposts), when the form can be submitted, and the button label |
 | `lib/menu.ts` | A hall's dishes (ordered by station, then name) and the dish search used by the post form |
 | `lib/ratings.ts` | Score validation (whole numbers 1–5), submit or replace a dish rating, the current user's score, dish averages |
+| `lib/profiles.ts` | A student's display name with post, follower, and following counts (count-only queries), and count labels |
 | `lib/database.types.ts` | Generated database types; regenerate after schema changes |
 
 ## Authentication and data flow
@@ -52,6 +53,7 @@ protection is a UI convenience, not a substitute for database permissions.
 | `menu_items` | Dish name and optional station/category per dining hall, one row per dish per hall; members read; app clients cannot write (the menu importer loads them) |
 | `posts` | Author, hall, optional dish (`menu_item_id`, which must be served at the post's hall), photo path, caption (up to 280 characters), server timestamp; members read and create their own posts |
 | `ratings` | Author, menu item, score (whole number 1–5), server timestamps; one rating per member per dish; members read all ratings and create or change only their own score; no deletes |
+| `follows` | Follower (from the session) and followee, server timestamp; one-way; no self-follows or duplicates; members read all follows and create or delete only their own |
 | `food-photos` bucket | Private JPEGs up to 5 MB; members read; uploads must be in the current user's folder |
 
 Posts require an existing uploaded photo at `user-id/post-id.jpg`. Clients cannot
