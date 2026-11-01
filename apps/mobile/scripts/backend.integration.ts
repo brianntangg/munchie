@@ -186,6 +186,21 @@ describe('Ratings', () => {
 });
 
 describe('Profile rules', () => {
+  test("members can read another member's profile and post count", async () => {
+    const [profile, posts] = await Promise.all([
+      bob.api.from('profiles').select('id, display_name').eq('id', alice.id).maybeSingle(),
+      bob.api.from('posts').select('id', { count: 'exact', head: true }).eq('author_id', alice.id),
+    ]);
+    expect(profile.error).toBeNull();
+    expect(profile.data?.id).toBe(alice.id);
+    expect(posts.error).toBeNull();
+    expect(posts.count).toEqual(expect.any(Number));
+  });
+
+  test('denies anonymous profile reads', async () => {
+    expect((await anonymous.from('profiles').select('*')).error).not.toBeNull();
+  });
+
   test('rejects blank, whitespace-only, and 41-character display names', async () => {
     for (const display_name of ['', '   ', 'x'.repeat(41)]) {
       const { error } = await alice.api.from('profiles').update({ display_name }).eq('id', alice.id);

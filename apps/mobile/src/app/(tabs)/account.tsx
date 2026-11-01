@@ -4,6 +4,7 @@ import { Text, View } from 'react-native';
 import { Avatar, Banner, Button, Card } from '@/components/ui';
 import { Feed } from '@/components/Feed';
 import { useAuth } from '@/lib/auth';
+import { postCountLabel } from '@/lib/profiles';
 import { message, supabase } from '@/lib/supabase';
 import { spacing, type } from '@/theme';
 export default function AccountScreen() {
@@ -33,7 +34,7 @@ export default function AccountScreen() {
   }
   if (!userId) return null;
   return <Feed authorId={userId} title="My account" header={<>
-    <Card style={{ alignItems: 'center', gap: spacing.md }}><Avatar name={name || 'Student'} size={72} /><View style={{ alignItems: 'center' }}><Text style={type.heading}>{name}</Text><Text style={type.caption}>{session.user.email}</Text></View>{count !== null && <Text style={type.body}>{count} posts</Text>}</Card>
+    <Card style={{ alignItems: 'center', gap: spacing.md }}><Avatar name={name || 'Student'} size={72} /><View style={{ alignItems: 'center' }}><Text style={type.heading}>{name}</Text><Text style={type.caption}>{session.user.email}</Text></View>{count !== null && <Text style={type.body}>{postCountLabel(count)}</Text>}</Card>
     <Banner message={error} />{!!error && <Button label="Retry account" onPress={() => setAttempt((n) => n + 1)} />}<Button label="Sign out" variant="danger" loading={busy} onPress={signOut} /><Text style={type.heading}>My posts</Text>
   </>} />;
 }

@@ -14,6 +14,7 @@ to `src/` in `tsconfig.json`; restart Metro after changing aliases or entry poin
 | `app/(tabs)/new-post.tsx` | Camera/library selection, JPEG preparation, publishing; optionally search the chosen hall's dishes, pick one, and rate it 1–5 stars in the same form |
 | `app/dining/[id].tsx` | Feed filtered by dining hall |
 | `app/post/[id].tsx` | Single post from Supabase |
+| `app/profile/[id].tsx` | A student's name, post count, and posts; opened from a post's author |
 | `components/ui.tsx`, `theme.ts` | Shared visual components and design tokens |
 | `components/form-ui.tsx` | Form helpers and styles used by login, profile, post, and feed; wraps the shared Button |
 | `components/Feed.tsx`, `PostCard.tsx` | Paginated feed and actual uploaded photos |

@@ -13,6 +13,7 @@ function RootNavigator() {
       <Stack.Screen name="(tabs)" />
       <Stack.Screen name="post/[id]" options={{ headerShown: true, title: 'Post', headerBackTitle: 'Back' }} />
       <Stack.Screen name="dining/[id]" options={{ headerShown: true, title: 'Dining hall', headerBackTitle: 'Back' }} />
+      <Stack.Screen name="profile/[id]" options={{ headerShown: true, title: 'Profile', headerBackTitle: 'Back' }} />
     </Stack.Protected>
   </Stack>;
 }
