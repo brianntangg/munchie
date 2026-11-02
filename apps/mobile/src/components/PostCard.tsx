@@ -1,6 +1,7 @@
 import { Link } from 'expo-router';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Avatar } from './ui';
+import { Stars } from './StarRating';
 import type { FeedPost } from '@/lib/posts';
 import { colors, radius, spacing, type } from '@/theme';
 export function PostCard({ post, linked = true }: { post: FeedPost; linked?: boolean }) {
@@ -8,7 +9,7 @@ export function PostCard({ post, linked = true }: { post: FeedPost; linked?: boo
   return <View style={styles.card}>
     <View style={styles.header}><Avatar name={post.profiles.display_name} /><View style={{ flex: 1 }}><Text style={{ fontWeight: '600', color: colors.text }}>{post.profiles.display_name}</Text><Text style={type.caption}>{post.dining_halls.name} · {new Date(post.created_at).toLocaleString()}</Text></View></View>
     {linked ? <Link href={{ pathname: '/post/[id]', params: { id: post.id } }} asChild><Pressable accessibilityRole="button" accessibilityLabel="View meal">{photo}</Pressable></Link> : photo}
-    <View style={styles.body}><Text style={type.heading}>{post.dining_halls.name}</Text>{post.caption ? <Text style={type.body}>{post.caption}</Text> : null}</View>
+    <View style={styles.body}><Text style={type.heading}>{post.dining_halls.name}</Text>{post.dish ? <View style={styles.dish} accessibilityLabel={`Dish: ${post.dish.name}`}><Text style={[type.body, { fontWeight: '600', flexShrink: 1 }]}>{post.dish.name}</Text>{post.dish.score !== null && <Stars score={post.dish.score} />}</View> : null}{post.caption ? <Text style={type.body}>{post.caption}</Text> : null}</View>
   </View>;
 }
 const styles = StyleSheet.create({
@@ -16,4 +17,5 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.md },
   photo: { width: '100%', aspectRatio: 4 / 3, backgroundColor: colors.goldSoft },
   body: { padding: spacing.md, gap: spacing.sm },
+  dish: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.md },
 });
