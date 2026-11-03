@@ -186,6 +186,38 @@ describe('Ratings', () => {
 });
 
 describe('Profile rules', () => {
+  test("members can read another member's profile and post count", async () => {
+    const [profile, posts] = await Promise.all([
+      bob.api.from('profiles').select('id, display_name').eq('id', alice.id).maybeSingle(),
+      bob.api.from('posts').select('id', { count: 'exact', head: true }).eq('author_id', alice.id),
+    ]);
+    expect(profile.error).toBeNull();
+    expect(profile.data?.id).toBe(alice.id);
+    expect(posts.error).toBeNull();
+    expect(posts.count).toEqual(expect.any(Number));
+  });
+
+  test('denies anonymous profile reads', async () => {
+    expect((await anonymous.from('profiles').select('*')).error).not.toBeNull();
+  });
+
+  test('follower and following counts change after a follow and an unfollow', async () => {
+    const counts = async () => {
+      const [followers, following] = await Promise.all([
+        alice.api.from('follows').select('*', { count: 'exact', head: true }).eq('followee_id', alice.id),
+        bob.api.from('follows').select('*', { count: 'exact', head: true }).eq('follower_id', bob.id),
+      ]);
+      expect(followers.error).toBeNull();
+      expect(following.error).toBeNull();
+      return [followers.count, following.count];
+    };
+    const [followersBefore, followingBefore] = await counts();
+    expect((await bob.api.from('follows').insert({ followee_id: alice.id })).error).toBeNull();
+    expect(await counts()).toEqual([followersBefore! + 1, followingBefore! + 1]);
+    expect((await bob.api.from('follows').delete().eq('followee_id', alice.id)).error).toBeNull();
+    expect(await counts()).toEqual([followersBefore, followingBefore]);
+  });
+
   test('rejects blank, whitespace-only, and 41-character display names', async () => {
     for (const display_name of ['', '   ', 'x'.repeat(41)]) {
       const { error } = await alice.api.from('profiles').update({ display_name }).eq('id', alice.id);
