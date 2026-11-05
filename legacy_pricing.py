@@ -83,6 +83,16 @@ def apply_coupon(c, t, u, total):
     raise ValueError("bad coupon")
 
 
+def fee_for(total):
+    if total > 0:
+        if total < FEE_LOW_LIMIT:
+            return FEE_LOW
+        if total < FEE_MID_LIMIT:
+            return FEE_MID
+        return FEE_HIGH
+    return 0.0
+
+
 def calc(t, q, u, d, c=None, w=False):
     # t = event type, q = quantity, u = user dict, d = day of week (0=Mon..6=Sun),
     # c = coupon code, w = waitlist
@@ -96,12 +106,5 @@ def calc(t, q, u, d, c=None, w=False):
         total = total + WAITLIST_SURCHARGE
     if total < 0:
         total = 0.0
-    fee = 0.0
-    if total > 0:
-        if total < FEE_LOW_LIMIT:
-            fee = FEE_LOW
-        elif total < FEE_MID_LIMIT:
-            fee = FEE_MID
-        else:
-            fee = FEE_HIGH
+    fee = fee_for(total)
     return round(total + fee, 2)
