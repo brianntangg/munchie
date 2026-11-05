@@ -21,26 +21,28 @@ FEE_MID_LIMIT, FEE_MID = 100, 2.5
 FEE_HIGH = 5.0
 
 
+# event type -> (weekday price, weekend price)
+BASE_PRICES = {
+    "concert": (20.0, 25.0),
+    "lecture": (5.0, 5.0),
+    "sports": (12.0, 15.0),
+    "workshop": (30.0, 30.0),
+}
+WEEKEND_DAYS = (5, 6)
+
+
+def base_price(t, d):
+    try:
+        weekday_price, weekend_price = BASE_PRICES[t]
+    except (KeyError, TypeError):
+        raise ValueError("bad type")
+    return weekend_price if d in WEEKEND_DAYS else weekday_price
+
+
 def calc(t, q, u, d, c=None, w=False):
     # t = event type, q = quantity, u = user dict, d = day of week (0=Mon..6=Sun),
     # c = coupon code, w = waitlist
-    p = 0
-    if t == "concert":
-        if d == 5 or d == 6:
-            p = 25.0
-        else:
-            p = 20.0
-    elif t == "lecture":
-        p = 5.0
-    elif t == "sports":
-        if d == 5 or d == 6:
-            p = 15.0
-        else:
-            p = 12.0
-    elif t == "workshop":
-        p = 30.0
-    else:
-        raise ValueError("bad type")
+    p = base_price(t, d)
     if q <= 0:
         raise ValueError("bad qty")
     if q > MAX_QUANTITY:
