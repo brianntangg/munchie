@@ -84,13 +84,11 @@ def apply_coupon(c, t, u, total):
 
 
 def fee_for(total):
-    if total > 0:
-        if total < FEE_LOW_LIMIT:
-            return FEE_LOW
-        if total < FEE_MID_LIMIT:
-            return FEE_MID
-        return FEE_HIGH
-    return 0.0
+    if total < FEE_LOW_LIMIT:
+        return FEE_LOW
+    if total < FEE_MID_LIMIT:
+        return FEE_MID
+    return FEE_HIGH
 
 
 def calc(t, q, u, d, c=None, w=False):
@@ -104,7 +102,5 @@ def calc(t, q, u, d, c=None, w=False):
     total = apply_coupon(c, t, u, total)
     if w:
         total = total + WAITLIST_SURCHARGE
-    if total < 0:
-        total = 0.0
     fee = fee_for(total)
     return round(total + fee, 2)
