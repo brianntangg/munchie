@@ -129,6 +129,24 @@ describe('Menu items', () => {
   });
 });
 
+describe('Popular dishes', () => {
+  // The call behind the starter suggestions on the photo screen (loadPopularDishes in src/lib/menu.ts).
+  test('a member gets a hall\'s dishes, most-rated first, limited to what they ask for', async () => {
+    const rand = halls.find((candidate) => candidate.name === 'Rand')!;
+    const { data, error } = await alice.api.rpc('popular_dishes', { hall_id: rand.id, max_results: 3 });
+    expect(error).toBeNull();
+    expect(data).toHaveLength(3);
+    expect(Object.keys(data[0]).sort()).toEqual(['category', 'id', 'name']);
+    const { data: inHall } = await alice.api.from('menu_items').select('id').eq('dining_hall_id', rand.id).in('id', data.map((dish: { id: string }) => dish.id));
+    expect(inHall).toHaveLength(3);
+  });
+
+  test('✗ denies anonymous callers', async () => {
+    const { error } = await anonymous.rpc('popular_dishes', { hall_id: halls[0].id });
+    expect(error).not.toBeNull();
+  });
+});
+
 describe('Ratings', () => {
   let dish: string;
   const myScore = async (member: Member) => {
@@ -413,6 +431,94 @@ describe('Posts about a dish', () => {
     const { data, error } = await alice.api.from('ratings').select('author_id, menu_item_id, score').in('menu_item_id', [dishInHall]).in('author_id', [bob.id]);
     expect(error).toBeNull();
     expect(data).toEqual([{ author_id: bob.id, menu_item_id: dishInHall, score: 4 }]);
+  });
+});
+
+describe('Posts with several photos', () => {
+  const cover = { id: '', path: '' };
+  const extras = Array.from({ length: 5 }, () => ({ id: '', path: '' }));
+  let rand: { id: string; name: string };
+  let dishes: { id: string; name: string }[];
+  // The post select the feed uses (POST_COLUMNS in src/lib/posts.ts).
+  const feedSelect = '*, profiles!inner(display_name), dining_halls!inner(name), post_photos(id, slot, photo_path, menu_item_id, dish_text, menu_items(name))';
+  // What publishPost in src/lib/posts.ts attaches after the post itself: extra photos in slots 1 and up, in one request.
+  const attach = (member: Member, count: number, tags: (string | null)[] = []) => member.api.from('post_photos').upsert(
+    extras.slice(0, count).map((photo, index) => ({ id: photo.id, post_id: cover.id, dining_hall_id: rand.id, slot: index + 1, photo_path: photo.path, ...(tags[index] ? { menu_item_id: tags[index] } : {}) })),
+    { onConflict: 'id', ignoreDuplicates: true },
+  );
+
+  beforeAll(async () => {
+    rand = halls.find((candidate) => candidate.name === 'Rand')!;
+    const { data, error } = await alice.api.from('menu_items').select('id, name').eq('dining_hall_id', rand.id).order('name').limit(3);
+    expect(error).toBeNull();
+    dishes = data ?? [];
+    expect(dishes.length).toBe(3);
+    for (const photo of [cover, ...extras]) {
+      Object.assign(photo, newPhoto(alice));
+      cleanup.push({ member: () => alice, path: photo.path });
+      await upload(alice, photo.path);
+    }
+  });
+
+  test('publishing a post records its cover photo and dish', async () => {
+    const { error } = await alice.api.from('posts').insert({ id: cover.id, author_id: alice.id, dining_hall_id: rand.id, photo_path: cover.path, menu_item_id: dishes[0].id });
+    expect(error).toBeNull();
+    const { data, error: readError } = await bob.api.from('post_photos').select('id, slot, menu_item_id').eq('post_id', cover.id);
+    expect(readError).toBeNull();
+    expect(data).toEqual([{ id: cover.id, slot: 0, menu_item_id: dishes[0].id }]);
+  });
+
+  test('the author attaches extra photos tagged with other dishes, and a retry changes nothing', async () => {
+    expect((await attach(alice, 2, [dishes[1].id, null])).error).toBeNull();
+    expect((await attach(alice, 2, [dishes[1].id, null])).error).toBeNull();
+    const { data, error } = await bob.api.from('post_photos').select('id').eq('post_id', cover.id);
+    expect(error).toBeNull();
+    expect(data).toHaveLength(3);
+  });
+
+  test('the feed returns every photo of the post with its dish name', async () => {
+    const { data, error } = await bob.api.from('posts').select(feedSelect).eq('id', cover.id).single();
+    expect(error).toBeNull();
+    const photos = [...data.post_photos].sort((a: { slot: number }, b: { slot: number }) => a.slot - b.slot);
+    expect(photos.map((photo: { slot: number; menu_items: { name: string } | null }) => [photo.slot, photo.menu_items?.name ?? null])).toEqual([[0, dishes[0].name], [1, dishes[1].name], [2, null]]);
+  });
+
+  test('the same dish cannot be tagged on two photos of one post', async () => {
+    const { error } = await alice.api.from('post_photos').insert({ id: extras[2].id, post_id: cover.id, dining_hall_id: rand.id, slot: 3, photo_path: extras[2].path, menu_item_id: dishes[0].id });
+    expect(error?.code).toBe('23505');
+  });
+
+  test('a photo can be labeled with free text instead of a menu dish, but not both', async () => {
+    const row = { id: extras[2].id, post_id: cover.id, dining_hall_id: rand.id, slot: 3, photo_path: extras[2].path };
+    expect((await alice.api.from('post_photos').insert({ ...row, menu_item_id: dishes[2].id, dish_text: 'Both' })).error?.code).toBe('23514');
+    expect((await alice.api.from('post_photos').insert({ ...row, dish_text: '   ' })).error?.code).toBe('23514');
+    expect((await alice.api.from('post_photos').insert({ ...row, dish_text: 'Grandma’s soup' })).error).toBeNull();
+    const { data, error } = await bob.api.from('posts').select(feedSelect).eq('id', cover.id).single();
+    expect(error).toBeNull();
+    expect(data.post_photos.find((photo: { slot: number }) => photo.slot === 3)).toMatchObject({ dish_text: 'Grandma’s soup', menu_item_id: null, menu_items: null });
+  });
+
+  test('a post cannot have a sixth photo', async () => {
+    const { error } = await alice.api.from('post_photos').insert({ id: extras[2].id, post_id: cover.id, dining_hall_id: rand.id, slot: 5, photo_path: extras[2].path });
+    expect(error?.code).toBe('23514');
+  });
+
+  test("another member cannot add photos to someone else's post", async () => {
+    const { error } = await attach(bob, 3);
+    expect(error?.code).toBe('42501');
+  });
+
+  test('published photos cannot be changed or removed', async () => {
+    expect((await alice.api.from('post_photos').update({ menu_item_id: dishes[2].id }).eq('id', extras[0].id)).error?.code).toBe('42501');
+    expect((await alice.api.from('post_photos').delete().eq('id', extras[0].id)).error?.code).toBe('42501');
+  });
+
+  test('an attached photo cannot be deleted from storage, but an unattached upload can', async () => {
+    const attached = await alice.api.storage.from('food-photos').remove([extras[0].path]);
+    expect(attached.data ?? []).toHaveLength(0);
+    const unattached = await alice.api.storage.from('food-photos').remove([extras[4].path]);
+    expect(unattached.error).toBeNull();
+    expect(unattached.data).toHaveLength(1);
   });
 });
 
