@@ -46,25 +46,28 @@ def validate_quantity(q):
         raise ValueError("too many")
 
 
+def role_multiplier(u):
+    if u is None:
+        return 1.0
+    role = u.get("role")
+    if role == "student":
+        return STUDENT_VERIFIED_MULT if u.get("verified") else STUDENT_UNVERIFIED_MULT
+    if role == "staff":
+        return STAFF_MULT
+    if role == "alumni":
+        if u.get("years", 0) >= ALUMNI_LONG_YEARS:
+            return ALUMNI_LONG_MULT
+        return ALUMNI_SHORT_MULT
+    return 1.0
+
+
 def calc(t, q, u, d, c=None, w=False):
     # t = event type, q = quantity, u = user dict, d = day of week (0=Mon..6=Sun),
     # c = coupon code, w = waitlist
     p = base_price(t, d)
     validate_quantity(q)
     total = p * q
-    if u is not None:
-        if u.get("role") == "student":
-            if u.get("verified"):
-                total = total * STUDENT_VERIFIED_MULT
-            else:
-                total = total * STUDENT_UNVERIFIED_MULT
-        elif u.get("role") == "staff":
-            total = total * STAFF_MULT
-        elif u.get("role") == "alumni":
-            if u.get("years", 0) >= ALUMNI_LONG_YEARS:
-                total = total * ALUMNI_LONG_MULT
-            else:
-                total = total * ALUMNI_SHORT_MULT
+    total = total * role_multiplier(u)
     if q >= BULK_MIN_QUANTITY:
         if t != "workshop":
             total = total - BULK_DISCOUNT
