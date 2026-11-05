@@ -11,20 +11,21 @@ to `src/` in `tsconfig.json`; restart Metro after changing aliases or entry poin
 | `app/_layout.tsx` | Auth provider and session-protected navigation |
 | `app/(auth)/sign-in.tsx` | Email-code sign-in and missing-configuration screen |
 | `app/(tabs)/_layout.tsx` | Feed, Dining, Post, Friends, Account; profile setup gate |
-| `app/(tabs)/new-post.tsx` | Camera/library selection, JPEG preparation, publishing; optionally search the chosen hall's dishes, pick one, and rate it 1–5 stars in the same form |
+| `app/(tabs)/new-post.tsx` | Choose a hall, then camera/library selection of up to 5 photos, JPEG preparation, publishing. After photos are added it opens a full-screen "What did you eat?" step (see `PhotoDetails`); the form itself shows a summary of every photo |
 | `app/dining/[id].tsx` | Feed filtered by dining hall |
 | `app/post/[id].tsx` | Single post from Supabase |
 | `app/profile/[id].tsx` | A student's name, post count, and posts; opened from a post's author |
 | `components/ui.tsx`, `theme.ts` | Shared visual components and design tokens |
 | `components/form-ui.tsx` | Form helpers and styles used by login, profile, post, and feed; wraps the shared Button |
-| `components/Feed.tsx`, `PostCard.tsx` | Paginated feed and actual uploaded photos |
+| `components/Feed.tsx`, `PostCard.tsx` | Paginated feed; a post's photos swipe side by side, showing the dish (and its score) in the photo on screen |
+| `components/PhotoDetails.tsx` | The "What did you eat?" step: a large preview, a strip of all the photos, a field that searches the hall's menu as you type (3 best matches; pick one to rate it, or keep what you typed), 3 popular dishes offered before anything is typed, and the photo summary list on the form |
 | `components/StarRating.tsx` | Tap-to-choose 1–5 star input |
 | `components/ProfileGate.tsx` | Loads profile or asks a signed-in user to create one |
 | `lib/auth.tsx` | Session restoration, auth events, foreground token refresh |
 | `lib/supabase.ts` | Client configuration and persistent session storage |
-| `lib/posts.ts` | Joined post queries (including the post's dish and its author's score for it), signed photo URLs, upload/insert workflow |
-| `lib/post-with-rating.ts` | The post form's logic: publish the post then save its rating (a failed rating never reposts), when the form can be submitted, and the button label |
-| `lib/menu.ts` | A hall's dishes (ordered by station, then name) and the dish search used by the post form |
+| `lib/posts.ts` | Joined post queries (each photo with its dish and its author's score for it), signed photo URLs, upload/insert workflow for the cover and extra photos |
+| `lib/post-with-rating.ts` | The post form's logic: publish the post then save each rating the member chose (a failed rating never reposts), when the form can be submitted, and the button label |
+| `lib/menu.ts` | A hall's dishes (ordered by station, then name), the dish search and ranked 3-dish suggestions used by the post form, and the hall's most-rated dishes (ranked in the database by `popular_dishes`) |
 | `lib/ratings.ts` | Score validation (whole numbers 1–5), submit or replace a dish rating, the current user's score, dish averages |
 | `lib/profiles.ts` | A student's display name with post, follower, and following counts (count-only queries), and count labels |
 | `lib/database.types.ts` | Generated database types; regenerate after schema changes |
@@ -51,14 +52,16 @@ protection is a UI convenience, not a substitute for database permissions.
 | `profiles` | Auth user ID and display name (1–40 trimmed characters); members read, users create/update their own profile |
 | `dining_halls` | Seeded ID/name reference list plus weekly `hours` (scraped from NetNutrition, loaded by migration); members read; app clients cannot write |
 | `menu_items` | Dish name and optional station/category per dining hall, one row per dish per hall; members read; app clients cannot write (the menu importer loads them) |
-| `posts` | Author, hall, optional dish (`menu_item_id`, which must be served at the post's hall), photo path, caption (up to 280 characters), server timestamp; members read and create their own posts |
+| `posts` | Author, hall, cover photo path, optional dish of the cover photo (`menu_item_id`, which must be served at the post's hall) or free-text label (`dish_text`), caption (up to 280 characters), server timestamp; members read and create their own posts |
+| `post_photos` | A post's photos in slots 0–4 (at most 5), each with an optional menu dish served at the post's hall (once per post) or optional free text of 1–100 characters, never both; only menu dishes can be rated. Slot 0 is the cover and is recorded by a trigger when the post is created; the author adds slots 1–4 afterward; members read; no updates or deletes |
 | `ratings` | Author, menu item, score (whole number 1–5), server timestamps; one rating per member per dish; members read all ratings and create or change only their own score; no deletes |
 | `follows` | Follower (from the session) and followee, server timestamp; one-way; no self-follows or duplicates; members read all follows and create or delete only their own |
 | `food-photos` bucket | Private JPEGs up to 5 MB; members read; uploads must be in the current user's folder |
 
 Posts require an existing uploaded photo at `user-id/post-id.jpg`. Clients cannot
 set post timestamps or update/delete posts. Storage policies permit removing an
-owner's unused uploads, but protect objects already referenced by a post.
+owner's unused uploads, but protect objects already referenced by a post or a post's extra photos.
+Extra photos are stored at `user-id/photo-id.jpg` and must be uploaded before they are attached.
 
 Dining halls are inserted by the migration so local and hosted databases agree.
 `supabase/seed.sql` adds demo menu items for local development and tests; it does
@@ -67,9 +70,12 @@ not create users or posts, and hosted projects do not run it. Hall names and hou
 ## Posting and reading
 
 The post screen resizes large photos to a maximum dimension of 1440 pixels and
-encodes JPEGs before upload. It generates a stable post ID for retries, uploads
-the object, then inserts the post. On an insert error, it checks whether the post
-committed before attempting cleanup. Unknown commit status preserves the photo.
+encodes JPEGs before upload. It generates a stable post ID for retries (the first
+photo, the cover, is stored under it) and a stable ID per extra photo, uploads
+every object, then inserts the post and attaches the extra photos in one request.
+On an insert error, it checks whether the post committed before attempting cleanup.
+Unknown commit status preserves the photos. If attaching extra photos fails after
+the post was saved, a retry skips the post and finishes attaching them.
 Drafts remain in component memory after a failed request; they do not survive an
 app restart. Crashes or network loss can leave unused objects; scheduled cleanup
 is not implemented.

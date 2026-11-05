@@ -1,15 +1,43 @@
+import { useState } from 'react';
 import { Link } from 'expo-router';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Avatar } from './ui';
 import { Stars } from './StarRating';
-import type { FeedPost } from '@/lib/posts';
+import type { FeedPhoto, FeedPost } from '@/lib/posts';
 import { colors, radius, spacing, type } from '@/theme';
+
+// The post's photos side by side: swipe between them. Each photo carries its own dish and score beneath it,
+// so what is shown always belongs to the photo on screen.
+function Gallery({ post, linked }: { post: FeedPost; linked: boolean }) {
+  const [width, setWidth] = useState(0);
+  const [current, setCurrent] = useState(0);
+  const count = post.photos.length;
+  const photoView = (photo: FeedPhoto, index: number) => photo.imageUrl
+    ? <Image source={{ uri: photo.imageUrl }} style={styles.photo} accessibilityLabel={`${post.caption || `Meal at ${post.dining_halls.name}`}${count > 1 ? `, photo ${index + 1} of ${count}` : ''}`} />
+    : <View style={[styles.photo, { justifyContent: 'center', padding: spacing.lg }]}><Text style={type.caption}>Photo unavailable. Refresh to try again.</Text></View>;
+  const page = (photo: FeedPhoto, index: number) => <View key={photo.id} style={width ? { width } : undefined}>
+    {linked
+      ? <Link href={{ pathname: '/post/[id]', params: { id: post.id } }} asChild><Pressable accessibilityRole="button" accessibilityLabel="View meal">{photoView(photo, index)}</Pressable></Link>
+      : photoView(photo, index)}
+    <View style={styles.dish} accessibilityLabel={photo.dish ? `Dish: ${photo.dish.name}` : undefined}>
+      {photo.dish ? <><Text style={[type.body, { fontWeight: '600', flexShrink: 1 }]}>{photo.dish.name}</Text>{photo.dish.score !== null && <Stars score={photo.dish.score} />}</> : null}
+    </View>
+  </View>;
+  // onScroll rather than onMomentumScrollEnd: the latter never fires for mouse or trackpad scrolling in the browser.
+  const track = (offset: number) => { if (width) setCurrent(Math.min(count - 1, Math.max(0, Math.round(offset / width)))); };
+  return <View onLayout={(event) => setWidth(event.nativeEvent.layout.width)}>
+    {count > 1
+      ? <ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false} scrollEventThrottle={16} onScroll={(event) => track(event.nativeEvent.contentOffset.x)}>{post.photos.map(page)}</ScrollView>
+      : post.photos[0] ? page(post.photos[0], 0) : null}
+    {count > 1 && <View style={styles.counter} accessibilityLabel={`Photo ${current + 1} of ${count}`}><Text style={styles.counterText}>{current + 1} / {count}</Text></View>}
+  </View>;
+}
+
 export function PostCard({ post, linked = true }: { post: FeedPost; linked?: boolean }) {
-  const photo = post.imageUrl ? <Image source={{ uri: post.imageUrl }} style={styles.photo} accessibilityLabel={post.caption || `Meal at ${post.dining_halls.name}`} /> : <View style={[styles.photo, { justifyContent: 'center', padding: spacing.lg }]}><Text style={type.caption}>Photo unavailable. Refresh to try again.</Text></View>;
   return <View style={styles.card}>
-    <Link href={{ pathname: '/profile/[id]', params: { id: post.author_id } }} asChild><Pressable style={styles.header} accessibilityRole="link" accessibilityLabel={`View ${post.profiles.display_name}'s profile`}><Avatar name={post.profiles.display_name} /><View style={{ flex: 1 }}><Text style={{ fontWeight: '600', color: colors.text }}>{post.profiles.display_name}</Text><Text style={type.caption}>{post.dining_halls.name} · {new Date(post.created_at).toLocaleString()}</Text></View></Pressable></Link>
-    {linked ? <Link href={{ pathname: '/post/[id]', params: { id: post.id } }} asChild><Pressable accessibilityRole="button" accessibilityLabel="View meal">{photo}</Pressable></Link> : photo}
-    <View style={styles.body}><Text style={type.heading}>{post.dining_halls.name}</Text>{post.dish ? <View style={styles.dish} accessibilityLabel={`Dish: ${post.dish.name}`}><Text style={[type.body, { fontWeight: '600', flexShrink: 1 }]}>{post.dish.name}</Text>{post.dish.score !== null && <Stars score={post.dish.score} />}</View> : null}{post.caption ? <Text style={type.body}>{post.caption}</Text> : null}</View>
+    <View style={styles.header}><Avatar name={post.profiles.display_name} /><View style={{ flex: 1 }}><Text style={{ fontWeight: '600', color: colors.text }}>{post.profiles.display_name}</Text><Text style={type.caption}>{post.dining_halls.name} · {new Date(post.created_at).toLocaleString()}</Text></View></View>
+    <Gallery post={post} linked={linked} />
+    <View style={styles.body}><Text style={type.heading}>{post.dining_halls.name}</Text>{post.caption ? <Text style={type.body}>{post.caption}</Text> : null}</View>
   </View>;
 }
 const styles = StyleSheet.create({
@@ -17,5 +45,8 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.md },
   photo: { width: '100%', aspectRatio: 4 / 3, backgroundColor: colors.goldSoft },
   body: { padding: spacing.md, gap: spacing.sm },
-  dish: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.md },
+  // A fixed minimum height keeps every page the same height, whether or not its photo has a dish.
+  dish: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.md, padding: spacing.md, paddingBottom: 0, minHeight: 36 },
+  counter: { position: 'absolute', top: spacing.md, right: spacing.md, backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: radius.md, paddingHorizontal: spacing.md, paddingVertical: spacing.xs },
+  counterText: { color: colors.onPrimary, fontSize: 13, fontWeight: '600' },
 });
