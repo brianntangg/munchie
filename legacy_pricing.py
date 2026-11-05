@@ -67,6 +67,22 @@ def bulk_discount(t, q):
     return 0.0
 
 
+def apply_coupon(c, t, u, total):
+    if c is None:
+        return total
+    if c == "WELCOME10":
+        if u is not None and u.get("first_purchase"):
+            return total * WELCOME10_MULT
+        return total
+    if c == "HALFOFF":
+        if t == "lecture":
+            return total * HALFOFF_MULT
+        return total
+    if c == "FREEDRINK":
+        return total
+    raise ValueError("bad coupon")
+
+
 def calc(t, q, u, d, c=None, w=False):
     # t = event type, q = quantity, u = user dict, d = day of week (0=Mon..6=Sun),
     # c = coupon code, w = waitlist
@@ -75,17 +91,7 @@ def calc(t, q, u, d, c=None, w=False):
     total = p * q
     total = total * role_multiplier(u)
     total = total - bulk_discount(t, q)
-    if c is not None:
-        if c == "WELCOME10":
-            if u is not None and u.get("first_purchase"):
-                total = total * WELCOME10_MULT
-        elif c == "HALFOFF":
-            if t == "lecture":
-                total = total * HALFOFF_MULT
-        elif c == "FREEDRINK":
-            pass
-        else:
-            raise ValueError("bad coupon")
+    total = apply_coupon(c, t, u, total)
     if w:
         total = total + WAITLIST_SURCHARGE
     if total < 0:
