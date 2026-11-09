@@ -32,7 +32,7 @@ Status reflects the `main` branch. Update this table as features land.
 | Shared feed | Paginated feed of all members' posts, pull-to-refresh, and post detail pages | Built |
 | Automatic refresh | Feed reloads on its own when the app returns to the foreground | Planned |
 | Edit and delete posts | Authors can correct or remove their own posts | Planned |
-| Likes and comments | React to and discuss other members' posts | Planned |
+| Likes and comments | React to and discuss other members' posts | In progress: likes and comments tables with access rules built; app screens planned |
 
 ### Dining halls
 
