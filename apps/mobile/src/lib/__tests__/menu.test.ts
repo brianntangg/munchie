@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
-import { DISH_RESULTS, filterDishes, loadMenuItems, loadPopularDishes, POPULAR_FETCH, starterDishes, suggestDishes, SUGGESTION_COUNT, type MenuItem } from '../menu';
+import { loadMenuItems, loadPopularDishes, POPULAR_FETCH, starterDishes, suggestDishes, SUGGESTION_COUNT, type MenuItem } from '../menu';
 
 // Replace the Supabase client with a fake whose responses each test controls.
 // Query methods record their arguments in mockQueryCall; awaiting a list query resolves to mockListResult().
@@ -46,41 +46,6 @@ describe('loadMenuItems', () => {
     const failure = new Error('permission denied');
     mockListResult.mockResolvedValue({ data: null, error: failure });
     await expect(loadMenuItems('hall-1')).rejects.toBe(failure);
-  });
-});
-
-describe('filterDishes', () => {
-  const menu = [dish('1', 'Achiote Chicken', 'Fresh Mex Main'), dish('2', 'Beef Lasagna', "Chef's Table Main"), dish('3', 'Brownies', 'Bakery'), dish('4', 'Soup')];
-
-  it('matches the name regardless of case', () => {
-    expect(filterDishes(menu, 'LASAGNA').shown.map((item) => item.id)).toEqual(['2']);
-  });
-
-  it('matches the station too', () => {
-    expect(filterDishes(menu, 'main').shown.map((item) => item.id)).toEqual(['1', '2']);
-  });
-
-  it('ignores surrounding spaces, and a blank search shows the first dishes', () => {
-    expect(filterDishes(menu, '  brown  ').shown.map((item) => item.id)).toEqual(['3']);
-    expect(filterDishes(menu, '   ').total).toBe(4);
-  });
-
-  it('copes with a dish that has no station', () => {
-    expect(filterDishes(menu, 'soup').shown.map((item) => item.id)).toEqual(['4']);
-    expect(filterDishes(menu, 'null').total).toBe(0);
-  });
-
-  it('returns nothing when nothing matches', () => {
-    expect(filterDishes(menu, 'pizza')).toEqual({ shown: [], total: 0 });
-    expect(filterDishes([], '')).toEqual({ shown: [], total: 0 });
-  });
-
-  it('caps what is shown but reports the full match count', () => {
-    const many = Array.from({ length: 30 }, (_, i) => dish(String(i), `Dish ${i}`));
-    const result = filterDishes(many, '');
-    expect(result.shown).toHaveLength(DISH_RESULTS);
-    expect(result.total).toBe(30);
-    expect(filterDishes(many, '', 3).shown.map((item) => item.id)).toEqual(['0', '1', '2']);
   });
 });
 

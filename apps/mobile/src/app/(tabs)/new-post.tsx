@@ -10,7 +10,7 @@ import { message, supabase } from '@/lib/supabase';
 import type { Tables } from '@/lib/database.types';
 import { loadMenuItems, loadPopularDishes, type MenuItem } from '@/lib/menu';
 import { canPost, postLabel, postWithRating } from '@/lib/post-with-rating';
-import { MAX_PHOTOS } from '@/lib/posts';
+import { MAX_PHOTOS, PhotosNotAttachedError } from '@/lib/posts';
 import { Button, ErrorText, Field, styles } from '@/components/form-ui';
 import { PhotoDetails, PhotoSummary, type PhotoDraft } from '@/components/PhotoDetails';
 
@@ -26,13 +26,16 @@ export default function Post() {
   const [error, setError] = useState('');
   const [hallError, setHallError] = useState('');
   const [attempt, setAttempt] = useState(0);
-  // Each photo is labeled with one of the hall's dishes or with free text, and a menu dish can get 1-5 stars. Ratings are saved with the post.
+  // Each photo is labeled with one of the hall's dishes or with free text, and either kind can get 1-5 stars. Ratings are saved with the post.
   const [dishes, setDishes] = useState<MenuItem[]>([]);
   const [popular, setPopular] = useState<MenuItem[]>([]);
   const [dishError, setDishError] = useState('');
   const [dishAttempt, setDishAttempt] = useState(0);
   // True once the post is published but a rating still needs saving, so a retry never creates a second post.
   const [posted, setPosted] = useState(false);
+  // True once the post is published but its extra photos still need attaching. The draft is locked like `posted`,
+  // because the post is already live: changing photos, hall or labels now would only make the retry fail or be ignored.
+  const [photosPending, setPhotosPending] = useState(false);
   const postId = useRef<string | null>(null);
   const submitting = useRef(false);
   useEffect(() => {
@@ -93,29 +96,40 @@ export default function Post() {
     if (!remaining.length) setEditing(null);
     else setEditing(remaining[Math.min(photos.findIndex((photo) => photo.id === id), remaining.length - 1)].id);
   }
-  // A different hall has different dishes, so drop the previous hall's menu dishes and their scores. Typed labels stay.
+  // A different hall has different dishes, so drop the previous hall's menu dishes and their scores. Typed labels and their scores stay.
+  // Choosing the hall that is already selected changes nothing; clearing would drop the tags without reloading the menu.
   function chooseHall(id: string) {
-    setHallId(id); setDishes([]); setPopular([]); setPhotos((current) => current.map((photo) => ({ ...photo, dish: null, score: null }))); setDishError('');
+    if (id === hallId) return;
+    setHallId(id); setDishes([]); setPopular([]); setPhotos((current) => current.map((photo) => (photo.dish ? { ...photo, dish: null, score: null } : photo))); setDishError('');
   }
   function reset() {
-    setPhotos([]); setEditing(null); setCaption(''); chooseHall(''); setPosted(false); postId.current = null;
+    setPhotos([]); setEditing(null); setCaption(''); setHallId(''); setDishes([]); setPopular([]); setDishError(''); setPosted(false); setPhotosPending(false); postId.current = null;
   }
+  // Menu dishes are rated in the ratings table; a typed label's score travels with its photo.
   const ratings = photos.flatMap((photo) => (photo.dish && photo.score !== null ? [{ menuItemId: photo.dish.id, score: photo.score }] : []));
+  const typedLabel = (photo: PhotoDraft) => (!photo.dish && photo.text.trim()) || undefined;
+  const typedScores = photos.filter((photo) => typedLabel(photo) && photo.score !== null).length;
   async function submit() {
     if (!canPost({ posted, photoCount: photos.length, hallId }) || submitting.current) return;
     submitting.current = true; setBusy(true); setError('');
     postId.current ??= randomUUID();
     try {
-      const { ratingError } = await postWithRating({ postId: postId.current, userId, hallId, caption, photos: photos.map((photo) => ({ id: photo.id, base64: photo.base64, menuItemId: photo.dish?.id, dishText: !photo.dish && photo.text.trim() ? photo.text.trim() : undefined })), ratings, alreadyPosted: posted });
+      const { ratingError } = await postWithRating({ postId: postId.current, userId, hallId, caption, photos: photos.map((photo) => ({ id: photo.id, base64: photo.base64, menuItemId: photo.dish?.id, dishText: typedLabel(photo), dishTextScore: typedLabel(photo) && photo.score !== null ? photo.score : undefined })), ratings, alreadyPosted: posted, photosPending });
+      setPhotosPending(false);
       if (ratingError) { setPosted(true); setError(`Your meal was posted, but a rating was not saved: ${message(ratingError)} Try again, or skip the ratings.`); return; }
       reset();
       router.navigate('/');
-    } catch (error) { setError(`${message(error)} Your draft is still here; you can retry.`); }
+    } catch (error) {
+      if (error instanceof PhotosNotAttachedError) {
+        setPosted(true); setPhotosPending(true);
+        setError(`${error.message} ${message(error.attachError)} Try again to attach them.`);
+      } else setError(`${message(error)} Your draft is still here; you can retry.`);
+    }
     finally { submitting.current = false; setBusy(false); }
   }
   const locked = busy || posted;
   const hallName = halls.find((hall) => hall.id === hallId)?.name ?? 'dining hall';
-  if (editing && photos.length) return <PhotoDetails photos={photos} activeId={editing} hallName={hallName} dishes={dishes} popular={popular} dishError={dishError} maxPhotos={MAX_PHOTOS} busy={busy} locked={posted}
+  if (editing && photos.length) return <PhotoDetails photos={photos} activeId={editing} hallName={hallName} dishes={dishes} popular={popular} dishError={dishError} maxPhotos={MAX_PHOTOS} busy={busy} locked={posted} error={error}
     onSelect={setEditing} onChange={changePhoto} onRemove={removePhoto} onAddMore={() => addPhotos(false)} onDone={() => setEditing(null)} onReloadDishes={() => { setDishError(''); setDishAttempt((value) => value + 1); }} />;
   const atLimit = photos.length >= MAX_PHOTOS;
   return <SafeAreaView style={styles.screen} edges={['top']}><KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === 'ios' ? 'padding' : undefined}><ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content}>
@@ -131,7 +145,7 @@ export default function Post() {
     {!!photos.length && <PhotoSummary photos={photos} onOpen={setEditing} />}
     <Field label="Caption (optional)" placeholder="What’s good today?" value={caption} onChangeText={setCaption} maxLength={280} multiline editable={!locked} />
     <ErrorText>{error}</ErrorText>
-    <Button title={postLabel({ busy, posted, ratingCount: ratings.length })} onPress={submit} disabled={busy || !canPost({ posted, photoCount: photos.length, hallId })} />
-    {posted && <Button title="Skip ratings" secondary disabled={busy} onPress={() => { reset(); router.navigate('/'); }} />}
+    <Button title={postLabel({ busy, posted, photosPending, ratingCount: posted ? ratings.length : ratings.length + typedScores })} onPress={submit} disabled={busy || !canPost({ posted, photoCount: photos.length, hallId })} />
+    {posted && <Button title={photosPending ? 'Continue without the other photos' : 'Skip ratings'} secondary disabled={busy} onPress={() => { reset(); router.navigate('/'); }} />}
   </ScrollView></KeyboardAvoidingView></SafeAreaView>;
 }

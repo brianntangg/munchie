@@ -129,8 +129,8 @@ users inside one transaction that rolls back.
 | `membership.test.sql` | 9 | S4, S5 | Only verified campus accounts are members: unverified accounts can't read data or create profiles, emails can't change to another domain, and profile IDs can't be reassigned |
 | `follows.test.sql` | 11 | S4, S5 | No self-follows or duplicate follows, members follow and unfollow only as themselves, and unverified or signed-out users can't read or follow |
 | `menu_items.test.sql` | 11 | S4 | One dish name per hall, a dish must belong to a real hall, name length limits, and only members can read dishes (nobody in the app can add, change, or delete them) |
-| `popular_dishes.test.sql` | 8 | S4 | A hall's dishes come back most-rated first and then alphabetically, capped, only from that hall, and nothing is returned to unverified or signed-out users |
-| `post_photos.test.sql` | 24 | S4 | The cover photo is recorded when a post is created; only the author adds extra photos; a dish must be served at the post's hall and appears once per post; at most 5 photos; free-text labels of 1–100 characters (never together with a menu dish), copied to the cover; clients cannot write the cover, add an unuploaded or mismatched photo, or change or remove a published photo |
+| `popular_dishes.test.sql` | 8 | S4 | A hall's rated dishes come back most-rated first (ties alphabetically), unrated ones are left out, capped, only from that hall, and nothing is returned to unverified or signed-out users |
+| `post_photos.test.sql` | 29 | S4 | The cover photo is recorded when a post is created; only the author adds extra photos; a dish must be served at the post's hall and appears once per post; at most 5 photos; free-text labels of 1–100 characters (never together with a menu dish), copied to the cover; a 1–5 score only on free text, also copied to the cover; clients cannot write the cover, add an unuploaded or mismatched photo, or change or remove a published photo |
 
 ## Keeping this up to date
 

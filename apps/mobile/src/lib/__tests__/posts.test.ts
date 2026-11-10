@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
-import { loadPost, loadPosts, MAX_DISH_TEXT, MAX_PHOTOS, PAGE_SIZE, publishPost } from '../posts';
+import { loadPost, loadPosts, MAX_DISH_TEXT, MAX_PHOTOS, PAGE_SIZE, PhotosNotAttachedError, publishPost } from '../posts';
 
 // Replace the Supabase client with a fake whose responses each test controls.
 // Query methods record their arguments in mockQueryCall and return the same chainable query;
@@ -102,6 +102,16 @@ describe('publishPost validation', () => {
     expect(mockUpload).not.toHaveBeenCalled();
   });
 
+  it('rejects a score on a photo without free text before doing anything', async () => {
+    await expect(publishPost({ ...post, photos: [{ ...cover, menuItemId: 'dish-1', dishTextScore: 4 }] })).rejects.toThrow('labeled photo');
+    expect(mockUpload).not.toHaveBeenCalled();
+  });
+
+  it.each([0, 6, 2.5])('rejects a free-text score of %p before doing anything', async (dishTextScore) => {
+    await expect(publishPost({ ...post, photos: [{ ...cover, dishText: 'Soup', dishTextScore }] })).rejects.toThrow('1 to 5');
+    expect(mockUpload).not.toHaveBeenCalled();
+  });
+
   it('accepts free text of exactly the maximum length', async () => {
     await expect(publishPost({ ...post, photos: [{ ...cover, dishText: 'x'.repeat(MAX_DISH_TEXT) }] })).resolves.toBeUndefined();
   });
@@ -129,6 +139,15 @@ describe('publishPost success', () => {
     await publishPost({ ...post, photos: [{ ...cover, dishText: '  Grandma’s soup ' }, { ...extra(1), dishText: 'Mystery taco' }] });
     expect(mockInsert).toHaveBeenCalledWith({ id: 'post-1', author_id: 'user-1', dining_hall_id: 'hall-1', dish_text: 'Grandma’s soup', caption: 'Great pasta', photo_path: path });
     expect(mockUpsert).toHaveBeenCalledWith([{ id: 'photo-1', post_id: 'post-1', dining_hall_id: 'hall-1', slot: 1, photo_path: 'user-1/photo-1.jpg', dish_text: 'Mystery taco' }], { onConflict: 'id', ignoreDuplicates: true });
+  });
+
+  it('saves the score of free-text photos with the photo', async () => {
+    await publishPost({ ...post, photos: [{ ...cover, dishText: 'Grandma’s soup', dishTextScore: 5 }, { ...extra(1), dishText: 'Mystery taco', dishTextScore: 2 }, { ...extra(2), dishText: 'Plain toast' }] });
+    expect(mockInsert).toHaveBeenCalledWith({ id: 'post-1', author_id: 'user-1', dining_hall_id: 'hall-1', dish_text: 'Grandma’s soup', dish_text_score: 5, caption: 'Great pasta', photo_path: path });
+    expect(mockUpsert).toHaveBeenCalledWith([
+      { id: 'photo-1', post_id: 'post-1', dining_hall_id: 'hall-1', slot: 1, photo_path: 'user-1/photo-1.jpg', dish_text: 'Mystery taco', dish_text_score: 2 },
+      { id: 'photo-2', post_id: 'post-1', dining_hall_id: 'hall-1', slot: 2, photo_path: 'user-1/photo-2.jpg', dish_text: 'Plain toast' },
+    ], { onConflict: 'id', ignoreDuplicates: true });
   });
 
   it('stores the cover under the post id and extra photos under their own ids, then attaches them in one request', async () => {
@@ -229,7 +248,10 @@ describe('publishPost failures', () => {
   it('throws when the extra photos cannot be attached, keeping the post and its photos so a retry can finish', async () => {
     const attachError = { code: '42501', message: 'permission denied' };
     mockUpsert.mockResolvedValue({ error: attachError });
-    await expect(publishPost({ ...post, photos: [cover, extra(1)] })).rejects.toBe(attachError);
+    const failure = await publishPost({ ...post, photos: [cover, extra(1)] }).catch((error: unknown) => error);
+    // A distinct error, so the form knows the post is live and locks the draft instead of treating it as unsaved.
+    expect(failure).toBeInstanceOf(PhotosNotAttachedError);
+    expect((failure as PhotosNotAttachedError).attachError).toBe(attachError);
     expect(mockRemove).not.toHaveBeenCalled();
   });
 });
@@ -237,7 +259,7 @@ describe('publishPost failures', () => {
 // A photo of a post as returned by the feed query: slot 0 is the cover, stored under the post id.
 const photoRow = (postId: string, slot: number, fields: object = {}) => {
   const id = slot === 0 ? postId : `${postId}-${slot}`;
-  return { id, slot, photo_path: `user-1/${id}.jpg`, menu_item_id: null, dish_text: null, menu_items: null, ...fields };
+  return { id, slot, photo_path: `user-1/${id}.jpg`, menu_item_id: null, dish_text: null, dish_text_score: null, menu_items: null, ...fields };
 };
 const row = (id: string, photos = [photoRow(id, 0)]) => ({ id, author_id: 'user-1', photo_path: `user-1/${id}.jpg`, caption: '', profiles: { display_name: 'Alice' }, dining_halls: { name: 'Rand' }, post_photos: photos });
 const { post_photos: _unused, ...withoutPhotos } = row('x');
@@ -342,10 +364,10 @@ describe('loadPosts dishes', () => {
     expect(first.photos[0].dish).toEqual({ name: 'Achiote Chicken', score: null });
   });
 
-  it('shows free text as the photo\'s dish, with no score and no rating lookup', async () => {
-    mockListResult.mockResolvedValue({ data: [dishPost('a', 'alice', [photoRow('a', 0, { dish_text: 'Grandma’s soup' }), photoRow('a', 1)])], error: null });
+  it('shows free text as the photo\'s dish with the score saved on the photo, and no rating lookup', async () => {
+    mockListResult.mockResolvedValue({ data: [dishPost('a', 'alice', [photoRow('a', 0, { dish_text: 'Grandma’s soup', dish_text_score: 4 }), photoRow('a', 1, { dish_text: 'Mystery taco' }), photoRow('a', 2)])], error: null });
     const [first] = await loadPosts();
-    expect(first.photos.map((photo) => photo.dish)).toEqual([{ name: 'Grandma’s soup', score: null }, null]);
+    expect(first.photos.map((photo) => photo.dish)).toEqual([{ name: 'Grandma’s soup', score: 4 }, { name: 'Mystery taco', score: null }, null]);
     expect(queryCalls('in')).toEqual([]);
   });
 

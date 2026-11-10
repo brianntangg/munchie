@@ -6,7 +6,7 @@ import { starterDishes, suggestDishes, type MenuItem } from '@/lib/menu';
 import { MAX_DISH_TEXT } from '@/lib/posts';
 import { colors, radius, spacing, type } from '@/theme';
 
-// One photo of a post being written. It is labeled with a menu dish (which can be rated) or with free text, never both.
+// One photo of a post being written. It is labeled with a menu dish or with free text, never both, and either can be rated.
 export type PhotoDraft = { id: string; uri: string; base64: string; dish: MenuItem | null; text: string; score: number | null };
 
 // What the photo is called, whichever way it was labeled; null while it has no label yet.
@@ -24,7 +24,7 @@ export function PhotoSummary({ photos, onOpen }: { photos: PhotoDraft[]; onOpen:
         <Image source={{ uri: photo.uri }} style={{ width: 64, height: 64, borderRadius: radius.md }} />
         <View style={{ flex: 1, gap: spacing.xs }}>
           <Text style={[type.body, { fontWeight: '600' }]} numberOfLines={1}>{label ?? 'What is this?'}</Text>
-          {photo.dish && photo.score !== null ? <Stars score={photo.score} /> : <Text style={type.caption}>{label ? (photo.dish ? 'On the menu · not rated' : 'Your own label') : 'Tap to add a dish'}</Text>}
+          {label && photo.score !== null ? <Stars score={photo.score} /> : <Text style={type.caption}>{label ? (photo.dish ? 'On the menu · not rated' : 'Your own label · not rated') : 'Tap to add a dish'}</Text>}
         </View>
         <Text style={type.caption}>Edit</Text>
       </Pressable>;
@@ -41,9 +41,11 @@ type Props = {
   // The hall's most-rated dishes, offered before anything is typed.
   popular: MenuItem[];
   dishError: string;
+  // The form's last error, such as a photo from "+" that could not be added, so it is visible on this screen too.
+  error: string;
   maxPhotos: number;
   busy: boolean;
-  // Once the post is published only ratings can still change.
+  // Once the post is published only menu-dish ratings can still change; a typed label's score was saved with the post.
   locked: boolean;
   onSelect: (id: string) => void;
   onChange: (id: string, change: Change) => void;
@@ -54,8 +56,8 @@ type Props = {
 };
 
 // Full-screen step after choosing photos: shows them all, and asks what each one is. Typing searches the hall's menu;
-// picking a match lets the member rate it, and anything else is kept as typed.
-export function PhotoDetails({ photos, activeId, hallName, dishes, popular, dishError, maxPhotos, busy, locked, onSelect, onChange, onRemove, onAddMore, onReloadDishes, onDone }: Props) {
+// picking a match or keeping what they typed both let the member rate it.
+export function PhotoDetails({ photos, activeId, hallName, dishes, popular, dishError, error, maxPhotos, busy, locked, onSelect, onChange, onRemove, onAddMore, onReloadDishes, onDone }: Props) {
   const index = Math.max(0, photos.findIndex((photo) => photo.id === activeId));
   const photo = photos[index];
   if (!photo) return null;
@@ -79,6 +81,7 @@ export function PhotoDetails({ photos, activeId, hallName, dishes, popular, dish
       </Pressable>)}
       {!locked && photos.length < maxPhotos && <Pressable onPress={onAddMore} disabled={busy} accessibilityRole="button" accessibilityLabel="Add another photo" style={{ width: 64, height: 64, borderRadius: radius.md, borderWidth: 1, borderStyle: 'dashed', borderColor: colors.textMuted, alignItems: 'center', justifyContent: 'center' }}><Text style={{ fontSize: 28, color: colors.textMuted }}>+</Text></Pressable>}
     </ScrollView>
+    <ErrorText>{error}</ErrorText>
 
     {photo.dish ? <View style={{ gap: spacing.md }}>
       <View style={{ padding: spacing.md, borderRadius: radius.md, backgroundColor: colors.successSoft, gap: spacing.xs }}>
@@ -103,12 +106,12 @@ export function PhotoDetails({ photos, activeId, hallName, dishes, popular, dish
       {!!typed && <Text style={styles.body}>{shown.length ? 'Not on the list? ' : 'No menu match. '}We’ll label this photo “{typed}”.</Text>}
     </View>}
 
-    {photo.dish ? <View style={{ gap: spacing.md }}>
+    {photo.dish || (typed && !locked) ? <View style={{ gap: spacing.md }}>
       <Text style={styles.label}>Rate this dish (optional)</Text>
       <StarRating value={photo.score} onChange={(score) => onChange(photo.id, { score })} disabled={busy} />
       <Text style={styles.body}>{photo.score === null ? 'Tap a star to rate it, or leave it unrated.' : `You gave it ${photo.score} of 5.`}</Text>
       {photo.score !== null && <Button title="Clear rating" secondary disabled={busy} onPress={() => onChange(photo.id, { score: null })} />}
-    </View> : !!typed && <Text style={type.caption}>Only dishes from the menu can be rated.</Text>}
+    </View> : !!typed && photo.score !== null && <Stars score={photo.score} />}
 
     <Button title={last ? 'Done' : 'Next photo'} disabled={busy} onPress={() => (last ? onDone() : onSelect(photos[index + 1].id))} />
     {!last && <Button title="Done" secondary disabled={busy} onPress={onDone} />}

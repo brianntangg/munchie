@@ -25,7 +25,7 @@ to `src/` in `tsconfig.json`; restart Metro after changing aliases or entry poin
 | `lib/supabase.ts` | Client configuration and persistent session storage |
 | `lib/posts.ts` | Joined post queries (each photo with its dish and its author's score for it), signed photo URLs, upload/insert workflow for the cover and extra photos |
 | `lib/post-with-rating.ts` | The post form's logic: publish the post then save each rating the member chose (a failed rating never reposts), when the form can be submitted, and the button label |
-| `lib/menu.ts` | A hall's dishes (ordered by station, then name), the dish search and ranked 3-dish suggestions used by the post form, and the hall's most-rated dishes (ranked in the database by `popular_dishes`) |
+| `lib/menu.ts` | A hall's dishes (ordered by station, then name), ranked 3-dish suggestions used by the post form, and the hall's most-rated dishes (ranked in the database by `popular_dishes`) |
 | `lib/ratings.ts` | Score validation (whole numbers 1–5), submit or replace a dish rating, the current user's score, dish averages |
 | `lib/profiles.ts` | A student's display name with post, follower, and following counts (count-only queries), and count labels |
 | `lib/database.types.ts` | Generated database types; regenerate after schema changes |
@@ -52,8 +52,8 @@ protection is a UI convenience, not a substitute for database permissions.
 | `profiles` | Auth user ID and display name (1–40 trimmed characters); members read, users create/update their own profile |
 | `dining_halls` | Seeded ID/name reference list plus weekly `hours` (scraped from NetNutrition, loaded by migration); members read; app clients cannot write |
 | `menu_items` | Dish name and optional station/category per dining hall, one row per dish per hall; members read; app clients cannot write (the menu importer loads them) |
-| `posts` | Author, hall, cover photo path, optional dish of the cover photo (`menu_item_id`, which must be served at the post's hall) or free-text label (`dish_text`), caption (up to 280 characters), server timestamp; members read and create their own posts |
-| `post_photos` | A post's photos in slots 0–4 (at most 5), each with an optional menu dish served at the post's hall (once per post) or optional free text of 1–100 characters, never both; only menu dishes can be rated. Slot 0 is the cover and is recorded by a trigger when the post is created; the author adds slots 1–4 afterward; members read; no updates or deletes |
+| `posts` | Author, hall, cover photo path, optional dish of the cover photo (`menu_item_id`, which must be served at the post's hall) or free-text label (`dish_text`) with an optional 1–5 score (`dish_text_score`), caption (up to 280 characters), server timestamp; members read and create their own posts |
+| `post_photos` | A post's photos in slots 0–4 (at most 5), each with an optional menu dish served at the post's hall (once per post) or optional free text of 1–100 characters, never both. Menu dishes are rated in `ratings`; free text can carry its own 1–5 score (`dish_text_score`), saved with the photo and never counted in a dish's average. Slot 0 is the cover and is recorded by a trigger when the post is created; the author adds slots 1–4 afterward; members read; no updates or deletes |
 | `ratings` | Author, menu item, score (whole number 1–5), server timestamps; one rating per member per dish; members read all ratings and create or change only their own score; no deletes |
 | `follows` | Follower (from the session) and followee, server timestamp; one-way; no self-follows or duplicates; members read all follows and create or delete only their own |
 | `food-photos` bucket | Private JPEGs up to 5 MB; members read; uploads must be in the current user's folder |

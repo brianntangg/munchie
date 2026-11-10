@@ -67,6 +67,13 @@ describe('postWithRating', () => {
     expect(mockRate).toHaveBeenCalledWith(rating);
   });
 
+  it('finishes attaching the photos before rating when the post was saved without them', async () => {
+    await expect(postWithRating({ ...meal, ratings: [rating], alreadyPosted: true, photosPending: true })).resolves.toEqual({ ratingError: null });
+    expect(mockPublish).toHaveBeenCalledWith(published);
+    expect(mockRate).toHaveBeenCalledWith(rating);
+    expect(mockPublish.mock.invocationCallOrder[0]).toBeLessThan(mockRate.mock.invocationCallOrder[0]);
+  });
+
   it('can fail a rating again on a retry, and still does not repost', async () => {
     const failure = new Error('still failing');
     mockRate.mockRejectedValue(failure);
@@ -105,6 +112,8 @@ describe('postLabel', () => {
     [{ busy: false, posted: false, ratingCount: 1 }, 'Post meal and rating'],
     [{ busy: false, posted: false, ratingCount: 3 }, 'Post meal and ratings'],
     [{ busy: false, posted: false, ratingCount: 0 }, 'Post meal'],
+    [{ busy: false, posted: true, photosPending: true, ratingCount: 2 }, 'Attach the other photos'],
+    [{ busy: true, posted: true, photosPending: true, ratingCount: 0 }, 'Please wait…'],
   ])('%j reads %p', (state, label) => {
     expect(postLabel(state)).toBe(label);
   });

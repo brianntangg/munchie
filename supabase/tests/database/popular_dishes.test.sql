@@ -1,4 +1,4 @@
--- popular_dishes ranks a hall's dishes by how many ratings they have, ties alphabetically,
+-- popular_dishes ranks a hall's rated dishes by how many ratings they have, ties alphabetically, leaves unrated dishes out,
 -- is capped, stays inside the hall, and returns nothing to people who are not verified members.
 begin;
 create extension if not exists pgtap with schema extensions;
@@ -30,10 +30,10 @@ set local role authenticated;
 select set_config('request.jwt.claim.sub', '96000000-0000-4000-8000-000000000001', true);
 
 select is((select array_agg(name order by ordinality) from public.popular_dishes('96000000-0000-4000-8000-0000000000f1') with ordinality),
-  array['Zucchini Bake', 'Burger', 'Apple Pie', 'Chili'], 'Dishes come back most-rated first, unrated ones alphabetically');
+  array['Zucchini Bake', 'Burger'], 'Rated dishes come back most-rated first, and unrated ones are left out');
 select is((select count(*) from public.popular_dishes('96000000-0000-4000-8000-0000000000f1', 2)), 2::bigint, 'The result is limited to the requested number');
 select is((select count(*) from public.popular_dishes('96000000-0000-4000-8000-0000000000f1', 0)), 1::bigint, 'Asking for none still returns one dish');
-select is((select count(*) from public.popular_dishes('96000000-0000-4000-8000-0000000000f1', 1000)), 4::bigint, 'A huge request is capped but never returns more than the hall has');
+select is((select count(*) from public.popular_dishes('96000000-0000-4000-8000-0000000000f1', 1000)), 2::bigint, 'A huge request is capped but never returns more than the hall has rated');
 select is((select category from public.popular_dishes('96000000-0000-4000-8000-0000000000f1') where name = 'Zucchini Bake'), 'Veg', 'Each dish comes with its station');
 select is((select count(*) from public.popular_dishes('96000000-0000-4000-8000-0000000000f1') where name = 'Elsewhere Dish'), 0::bigint, 'Dishes from another hall are left out');
 

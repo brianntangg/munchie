@@ -2,7 +2,7 @@
 -- extras are added only by the post's author, and published photos cannot be changed or removed.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(24);
+select plan(29);
 
 -- Fixtures, created as the table owner. Dishes 1 and 2 are served at Rand, dish 3 at Commons.
 insert into auth.users(id, email, email_confirmed_at) values
@@ -89,10 +89,18 @@ select throws_ok($$insert into public.post_photos (id, post_id, dining_hall_id, 
   ('95000000-0000-4000-8000-0000000000b4', '95000000-0000-4000-8000-0000000000b0', '10000000-0000-4000-8000-000000000001', 4,
    '95000000-0000-4000-8000-000000000001/95000000-0000-4000-8000-0000000000b4.jpg', repeat('x', 101))$$,
   '23514', null, 'A label over 100 characters is rejected');
-select lives_ok($$insert into public.post_photos (id, post_id, dining_hall_id, slot, photo_path, dish_text) values
+select throws_ok($$insert into public.post_photos (id, post_id, dining_hall_id, slot, photo_path, dish_text_score) values
   ('95000000-0000-4000-8000-0000000000b4', '95000000-0000-4000-8000-0000000000b0', '10000000-0000-4000-8000-000000000001', 4,
-   '95000000-0000-4000-8000-000000000001/95000000-0000-4000-8000-0000000000b4.jpg', repeat('x', 100))$$,
-  'A label of exactly 100 characters is accepted');
+   '95000000-0000-4000-8000-000000000001/95000000-0000-4000-8000-0000000000b4.jpg', 3)$$,
+  '23514', null, 'A photo without free text cannot carry a score');
+select throws_ok($$insert into public.post_photos (id, post_id, dining_hall_id, slot, photo_path, dish_text, dish_text_score) values
+  ('95000000-0000-4000-8000-0000000000b4', '95000000-0000-4000-8000-0000000000b0', '10000000-0000-4000-8000-000000000001', 4,
+   '95000000-0000-4000-8000-000000000001/95000000-0000-4000-8000-0000000000b4.jpg', 'Soup', 6)$$,
+  '23514', null, 'A free-text score above 5 is rejected');
+select lives_ok($$insert into public.post_photos (id, post_id, dining_hall_id, slot, photo_path, dish_text, dish_text_score) values
+  ('95000000-0000-4000-8000-0000000000b4', '95000000-0000-4000-8000-0000000000b0', '10000000-0000-4000-8000-000000000001', 4,
+   '95000000-0000-4000-8000-000000000001/95000000-0000-4000-8000-0000000000b4.jpg', repeat('x', 100), 5)$$,
+  'A label of exactly 100 characters is accepted, with a score');
 select throws_ok($$insert into public.post_photos (id, post_id, dining_hall_id, slot, photo_path, menu_item_id, dish_text) values
   ('95000000-0000-4000-8000-0000000000b5', '95000000-0000-4000-8000-0000000000b0', '10000000-0000-4000-8000-000000000001', 4,
    '95000000-0000-4000-8000-000000000001/95000000-0000-4000-8000-0000000000b5.jpg', '95000000-0000-4000-8000-0000000000a2', 'Both')$$,
@@ -103,10 +111,21 @@ select lives_ok($$insert into public.posts (id, author_id, dining_hall_id, photo
   'A post can be published with a free-text cover label');
 select is((select dish_text from public.post_photos where id = '95000000-0000-4000-8000-0000000000b8' and slot = 0),
   'Chef''s special', 'The cover photo carries the post''s free-text label');
+select throws_ok($$insert into public.posts (id, author_id, dining_hall_id, photo_path, menu_item_id, dish_text_score) values
+  ('95000000-0000-4000-8000-0000000000b9', '95000000-0000-4000-8000-000000000001', '10000000-0000-4000-8000-000000000001',
+   '95000000-0000-4000-8000-000000000001/95000000-0000-4000-8000-0000000000b9.jpg', '95000000-0000-4000-8000-0000000000a1', 4)$$,
+  '23514', null, 'A post''s menu dish cannot carry a free-text score');
 select throws_ok($$insert into public.posts (id, author_id, dining_hall_id, photo_path, menu_item_id, dish_text) values
   ('95000000-0000-4000-8000-0000000000b9', '95000000-0000-4000-8000-000000000001', '10000000-0000-4000-8000-000000000001',
    '95000000-0000-4000-8000-000000000001/95000000-0000-4000-8000-0000000000b9.jpg', '95000000-0000-4000-8000-0000000000a1', 'Both')$$,
   '23514', null, 'A post cannot name a menu dish and free text at once');
+select lives_ok($$insert into public.posts (id, author_id, dining_hall_id, photo_path, dish_text, dish_text_score) values
+  ('95000000-0000-4000-8000-0000000000b9', '95000000-0000-4000-8000-000000000001', '10000000-0000-4000-8000-000000000001',
+   '95000000-0000-4000-8000-000000000001/95000000-0000-4000-8000-0000000000b9.jpg', 'Late-night nachos', 4)$$,
+  'A post can be published with a scored free-text cover label');
+
+select is((select dish_text_score from public.post_photos where id = '95000000-0000-4000-8000-0000000000b9' and slot = 0),
+  4::smallint, 'The cover photo carries the post''s free-text score');
 
 -- Member B reads the photos but cannot add to A's post.
 select set_config('request.jwt.claim.sub', '95000000-0000-4000-8000-000000000002', true);

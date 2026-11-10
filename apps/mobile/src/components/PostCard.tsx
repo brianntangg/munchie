@@ -12,6 +12,8 @@ function Gallery({ post, linked }: { post: FeedPost; linked: boolean }) {
   const [width, setWidth] = useState(0);
   const [current, setCurrent] = useState(0);
   const count = post.photos.length;
+  // Only posts with a dish on some photo get the dish row, so posts without one (including every older post) have no empty strip.
+  const hasDish = post.photos.some((photo) => photo.dish);
   const photoView = (photo: FeedPhoto, index: number) => photo.imageUrl
     ? <Image source={{ uri: photo.imageUrl }} style={styles.photo} accessibilityLabel={`${post.caption || `Meal at ${post.dining_halls.name}`}${count > 1 ? `, photo ${index + 1} of ${count}` : ''}`} />
     : <View style={[styles.photo, { justifyContent: 'center', padding: spacing.lg }]}><Text style={type.caption}>Photo unavailable. Refresh to try again.</Text></View>;
@@ -19,9 +21,9 @@ function Gallery({ post, linked }: { post: FeedPost; linked: boolean }) {
     {linked
       ? <Link href={{ pathname: '/post/[id]', params: { id: post.id } }} asChild><Pressable accessibilityRole="button" accessibilityLabel="View meal">{photoView(photo, index)}</Pressable></Link>
       : photoView(photo, index)}
-    <View style={styles.dish} accessibilityLabel={photo.dish ? `Dish: ${photo.dish.name}` : undefined}>
+    {hasDish && <View style={styles.dish} accessibilityLabel={photo.dish ? `Dish: ${photo.dish.name}` : undefined}>
       {photo.dish ? <><Text style={[type.body, { fontWeight: '600', flexShrink: 1 }]}>{photo.dish.name}</Text>{photo.dish.score !== null && <Stars score={photo.dish.score} />}</> : null}
-    </View>
+    </View>}
   </View>;
   // onScroll rather than onMomentumScrollEnd: the latter never fires for mouse or trackpad scrolling in the browser.
   const track = (offset: number) => { if (width) setCurrent(Math.min(count - 1, Math.max(0, Math.round(offset / width)))); };
@@ -35,7 +37,7 @@ function Gallery({ post, linked }: { post: FeedPost; linked: boolean }) {
 
 export function PostCard({ post, linked = true }: { post: FeedPost; linked?: boolean }) {
   return <View style={styles.card}>
-    <View style={styles.header}><Avatar name={post.profiles.display_name} /><View style={{ flex: 1 }}><Text style={{ fontWeight: '600', color: colors.text }}>{post.profiles.display_name}</Text><Text style={type.caption}>{post.dining_halls.name} · {new Date(post.created_at).toLocaleString()}</Text></View></View>
+    <Link href={{ pathname: '/profile/[id]', params: { id: post.author_id } }} asChild><Pressable style={styles.header} accessibilityRole="link" accessibilityLabel={`View ${post.profiles.display_name}'s profile`}><Avatar name={post.profiles.display_name} /><View style={{ flex: 1 }}><Text style={{ fontWeight: '600', color: colors.text }}>{post.profiles.display_name}</Text><Text style={type.caption}>{post.dining_halls.name} · {new Date(post.created_at).toLocaleString()}</Text></View></Pressable></Link>
     <Gallery post={post} linked={linked} />
     <View style={styles.body}><Text style={type.heading}>{post.dining_halls.name}</Text>{post.caption ? <Text style={type.body}>{post.caption}</Text> : null}</View>
   </View>;
@@ -45,7 +47,7 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.md },
   photo: { width: '100%', aspectRatio: 4 / 3, backgroundColor: colors.goldSoft },
   body: { padding: spacing.md, gap: spacing.sm },
-  // A fixed minimum height keeps every page the same height, whether or not its photo has a dish.
+  // On a post with any dish, a fixed minimum height keeps every page the same height, whether or not its photo has one.
   dish: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.md, padding: spacing.md, paddingBottom: 0, minHeight: 36 },
   counter: { position: 'absolute', top: spacing.md, right: spacing.md, backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: radius.md, paddingHorizontal: spacing.md, paddingVertical: spacing.xs },
   counterText: { color: colors.onPrimary, fontSize: 13, fontWeight: '600' },

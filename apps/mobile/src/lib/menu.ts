@@ -10,16 +10,6 @@ export async function loadMenuItems(hallId: string): Promise<MenuItem[]> {
   return data;
 }
 
-export const DISH_RESULTS = 8;
-
-// Dishes whose name or station contains the search text (ignoring case), capped so a hall with hundreds of dishes stays usable.
-// `total` is how many matched before the cap, so the screen can say when more are hidden.
-export function filterDishes(items: MenuItem[], query: string, limit = DISH_RESULTS): { shown: MenuItem[]; total: number } {
-  const needle = query.trim().toLowerCase();
-  const matches = needle ? items.filter((item) => `${item.name} ${item.category ?? ''}`.toLowerCase().includes(needle)) : items;
-  return { shown: matches.slice(0, limit), total: matches.length };
-}
-
 export const SUGGESTION_COUNT = 3;
 
 // How well a dish fits what the member typed: 0 name starts with it, 1 a word in the name starts with it, 2 name contains it, 3 only the station does.
