@@ -10,7 +10,7 @@ import { colors } from '@/theme';
 // A sample post that shows the name as it is typed, so new members see where it appears.
 function NamePreview({ name }: { name: string }) {
   const shown = name.trim();
-  return <View accessible accessibilityLabel={`Preview: your posts will show ${shown || 'your name'}`} style={{ alignItems: 'center', paddingTop: 6, paddingBottom: 10 }}>
+  return <View accessible accessibilityLabel={`Preview: your posts will show ${shown || 'your name'}`} style={{ alignItems: 'center', paddingVertical: 18 }}>
     <View style={{ width: 250, borderRadius: 18, backgroundColor: colors.surface, overflow: 'hidden', transform: [{ rotate: '-2deg' }], boxShadow: '0px 10px 24px rgba(28, 28, 28, 0.12)' }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12 }}>
         <Avatar name={shown || '?'} size={34} />
@@ -48,11 +48,8 @@ export function ProfileSetup({ userId, onSaved }: { userId: string; onSaved: () 
         <Text style={styles.body}>Your name appears next to your posts.</Text>
       </View>
       <Field label="Display name" placeholder="Your name" value={name} onChangeText={setName} maxLength={40} editable={!busy} autoComplete="name" />
-      <View style={{ gap: 10 }}>
-        <Text style={[styles.body, { fontSize: 13, lineHeight: 18 }]}>How it looks on your posts</Text>
-        <NamePreview name={name} />
-      </View>
-      <Button title={busy ? 'Saving…' : 'Continue to the feed'} onPress={save} disabled={busy || !name.trim()} /><ErrorText>{error}</ErrorText>
+      <NamePreview name={name} />
+      <Button title={busy ? 'Saving…' : 'Continue'} onPress={save} disabled={busy || !name.trim()} /><ErrorText>{error}</ErrorText>
       <Button title="Sign out" secondary disabled={busy} onPress={() => { supabase.auth.signOut({ scope: 'local' }).then(({ error }) => { if (error) setError(error.message); }).catch((error) => setError(message(error))); }} />
     </ScrollView>
   </KeyboardAvoidingView>;

@@ -64,8 +64,8 @@ export function SignIn({ notice }: { notice?: ReactNode }) {
       <MealCollage />
       <View style={[styles.content, { marginTop: -6, paddingTop: 0 }]}>
         {notice}
-        <View style={{ gap: 8 }}>
-          <Text accessibilityRole="header" style={{ fontSize: 44, fontWeight: '800', letterSpacing: -0.5, color: colors.text }}>Munchie</Text>
+        <View style={{ gap: 2 }}>
+          <Text accessibilityRole="header" style={{ fontSize: 50, lineHeight: 56, fontWeight: '800', letterSpacing: -0.5, color: colors.text }}>Munchie</Text>
           <Text style={{ fontSize: 18, fontWeight: '600', lineHeight: 24, color: colors.textMuted }}>What’s good on campus?</Text>
         </View>
         <Field label="Vanderbilt email" placeholder="you@vanderbilt.edu" value={email} onChangeText={setEmail} autoCapitalize="none" autoCorrect={false} keyboardType="email-address" autoComplete="email" editable={!busy} onSubmitEditing={sendCode} returnKeyType="send" />
