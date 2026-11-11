@@ -107,7 +107,7 @@ failure-path test (invalid input, constraint violation, or unauthorized).
 | ✗ a member can like a post only once | S4 | A second like on the same post is rejected as a duplicate |
 | ✗ cannot like as another member or remove someone else's like | S4 | Liking as someone else is denied, and the other member's like stays |
 | comments come back oldest first with each author's name | S2, S4 | Comments read back in the order written, joined to the author's display name |
-| ✗ rejects blank and 281-character comments | S4 | Both are rejected by the length rule |
+| ✗ rejects blank, whitespace-only, and 281-character comments | S4 | Spaces only, newlines and tabs only, 281 characters, and a short comment padded past 280 are all rejected |
 | ✗ a member can delete their own comment but not someone else's | S4 | Another member's delete leaves the comment; the author's delete removes it |
 | ✗ denies anonymous like and comment reads | S2, S4 | Signed-out reads of both tables fail |
 | **Sign-out** | | |
@@ -124,7 +124,7 @@ users inside one transaction that rolls back.
 | `membership.test.sql` | 9 | S4, S5 | Only verified campus accounts are members: unverified accounts can't read data or create profiles, emails can't change to another domain, and profile IDs can't be reassigned |
 | `follows.test.sql` | 11 | S4, S5 | No self-follows or duplicate follows, members follow and unfollow only as themselves, and unverified or signed-out users can't read or follow |
 | `likes.test.sql` | 11 | S4, S5 | One like per member per post, members like and unlike only as themselves, likes must point at a real post, and unverified or signed-out users can't read or like |
-| `comments.test.sql` | 14 | S4, S5 | Comments are 1–280 characters, written and deleted only by their author (not even the post's author can delete them), can't be edited or backdated, and unverified or signed-out users can't read or comment |
+| `comments.test.sql` | 16 | S4, S5 | Comments are at most 280 characters with at least one non-whitespace character (newline/tab-only and space-padded comments are rejected), written and deleted only by their author (not even the post's author can delete them), can't be edited or backdated, and unverified or signed-out users can't read or comment |
 | `menu_items.test.sql` | 11 | S4 | One dish name per hall, a dish must belong to a real hall, name length limits, and only members can read dishes (nobody in the app can add, change, or delete them) |
 
 ## Keeping this up to date

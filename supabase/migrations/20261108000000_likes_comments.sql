@@ -16,7 +16,10 @@ create table public.comments (
   id uuid primary key default gen_random_uuid(),
   post_id uuid not null references public.posts(id) on delete cascade,
   author_id uuid not null default auth.uid() references public.profiles(id) on delete cascade,
-  body text not null check (char_length(trim(body)) between 1 and 280),
+  -- At most 280 characters as stored, and at least one non-whitespace character. (trim() only strips spaces,
+  -- so it would let a comment of only newlines or tabs through, and measuring after trimming would let padding
+  -- carry a comment past 280.)
+  body text not null check (char_length(body) <= 280 and body ~ '\S'),
   created_at timestamptz not null default now()
 );
 -- Serves "this post's comments, oldest first".

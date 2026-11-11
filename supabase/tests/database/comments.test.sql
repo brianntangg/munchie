@@ -1,8 +1,8 @@
--- Comments: 1-280 characters, written and deleted only by their author, never edited,
+-- Comments: up to 280 characters with at least one non-whitespace character, written and deleted only by their author, never edited,
 -- and hidden from non-members.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(14);
+select plan(16);
 
 -- Fixtures, created as the table owner.
 insert into auth.users(id, email, email_confirmed_at) values
@@ -30,6 +30,10 @@ select throws_ok($$insert into public.comments (post_id, body) values ('95000000
   '23514', null, 'A 281-character comment is rejected');
 select throws_ok($$insert into public.comments (post_id, body) values ('95000000-0000-4000-8000-0000000000c1', '   ')$$,
   '23514', null, 'A blank comment is rejected');
+select throws_ok($$insert into public.comments (post_id, body) values ('95000000-0000-4000-8000-0000000000c1', E'\n\t \r\n')$$,
+  '23514', null, 'A comment of only newlines and tabs is rejected');
+select throws_ok($$insert into public.comments (post_id, body) values ('95000000-0000-4000-8000-0000000000c1', 'Hi' || repeat(' ', 300))$$,
+  '23514', null, 'Padding with spaces cannot carry a comment past 280 characters');
 select throws_ok($$insert into public.comments (post_id, body, author_id) values
   ('95000000-0000-4000-8000-0000000000c1', 'As B', '95000000-0000-4000-8000-000000000012')$$,
   '42501', 'permission denied for table comments', 'A member cannot comment as someone else');
