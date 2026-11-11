@@ -395,4 +395,4 @@ jobs:
           TAG: ${{ github.ref_name }}
         run: |
           (cd dist && zip -qr "../munchie-web-$TAG.zip" .)
-          gh release create "$TAG" "munchie-web-$TAG.zip" --title "Munchie $TAG" --generate-notes
+          gh release create "$TAG" "munchie-web-$TAG.zip" --title "Munchie ${{ github.ref_name }}" --generate-notes
