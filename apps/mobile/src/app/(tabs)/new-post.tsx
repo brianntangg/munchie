@@ -10,7 +10,7 @@ import { message, supabase } from '@/lib/supabase';
 import type { Tables } from '@/lib/database.types';
 import { loadMenuItems, loadPopularDishes, type MenuItem } from '@/lib/menu';
 import { canPost, postLabel, postWithRating } from '@/lib/post-with-rating';
-import { MAX_PHOTOS, PhotosNotAttachedError } from '@/lib/posts';
+import { MAX_PHOTOS } from '@/lib/posts';
 import { Button, ErrorText, Field, styles } from '@/components/form-ui';
 import { PhotoDetails, PhotoSummary, type PhotoDraft } from '@/components/PhotoDetails';
 
@@ -114,17 +114,18 @@ export default function Post() {
     submitting.current = true; setBusy(true); setError('');
     postId.current ??= randomUUID();
     try {
-      const { ratingError } = await postWithRating({ postId: postId.current, userId, hallId, caption, photos: photos.map((photo) => ({ id: photo.id, base64: photo.base64, menuItemId: photo.dish?.id, dishText: typedLabel(photo), dishTextScore: typedLabel(photo) && photo.score !== null ? photo.score : undefined })), ratings, alreadyPosted: posted, photosPending });
+      const { ratingError, photosError } = await postWithRating({ postId: postId.current, userId, hallId, caption, photos: photos.map((photo) => ({ id: photo.id, base64: photo.base64, menuItemId: photo.dish?.id, dishText: typedLabel(photo), dishTextScore: typedLabel(photo) && photo.score !== null ? photo.score : undefined })), ratings, alreadyPosted: posted, photosPending });
+      if (photosError) {
+        // The post is live and the ratings were attempted, so "Continue without the other photos" loses only those photos.
+        setPosted(true); setPhotosPending(true);
+        setError(`${photosError.message} ${message(photosError.attachError)} ${ratingError ? `A rating was not saved either: ${message(ratingError)}` : 'Your ratings were saved.'} Try again to attach them.`);
+        return;
+      }
       setPhotosPending(false);
       if (ratingError) { setPosted(true); setError(`Your meal was posted, but a rating was not saved: ${message(ratingError)} Try again, or skip the ratings.`); return; }
       reset();
       router.navigate('/');
-    } catch (error) {
-      if (error instanceof PhotosNotAttachedError) {
-        setPosted(true); setPhotosPending(true);
-        setError(`${error.message} ${message(error.attachError)} Try again to attach them.`);
-      } else setError(`${message(error)} Your draft is still here; you can retry.`);
-    }
+    } catch (error) { setError(`${message(error)} Your draft is still here; you can retry.`); }
     finally { submitting.current = false; setBusy(false); }
   }
   const locked = busy || posted;

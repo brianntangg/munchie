@@ -1,4 +1,4 @@
-import { publishPost, type PostPhotoInput } from './posts';
+import { PhotosNotAttachedError, publishPost, type PostPhotoInput } from './posts';
 import { isValidScore, submitRating } from './ratings';
 
 export type MealRating = { menuItemId: string; score: number };
@@ -20,10 +20,20 @@ export type PostWithRatingInput = {
 // A failed rating does not throw: the meal is already posted, so the first failure comes back as `ratingError` and the caller
 // retries with `alreadyPosted` set, which never creates a second post. Every rating is attempted, and saving one again is harmless.
 // `ratingError` is null when everything saved.
-export async function postWithRating({ postId, userId, hallId, caption, photos, ratings = [], alreadyPosted = false, photosPending = false }: PostWithRatingInput): Promise<{ ratingError: unknown }> {
+// If the post was saved but its extra photos were not attached, the ratings are still saved and the failure comes back as
+// `photosError`: the post is live, so the member may continue without those photos, and their ratings must not be lost with them.
+export async function postWithRating({ postId, userId, hallId, caption, photos, ratings = [], alreadyPosted = false, photosPending = false }: PostWithRatingInput): Promise<{ ratingError: unknown; photosError?: PhotosNotAttachedError }> {
   // Checked up front so a bad score cannot leave a posted meal behind.
   if (ratings.some((rating) => !isValidScore(rating.score))) throw new Error('Choose a score from 1 to 5.');
-  if (!alreadyPosted || photosPending) await publishPost({ id: postId, userId, hallId, caption, photos });
+  let photosError: PhotosNotAttachedError | undefined;
+  if (!alreadyPosted || photosPending) {
+    try {
+      await publishPost({ id: postId, userId, hallId, caption, photos });
+    } catch (error) {
+      if (!(error instanceof PhotosNotAttachedError)) throw error;
+      photosError = error;
+    }
+  }
   let ratingError: unknown = null;
   for (const rating of ratings) {
     try {
@@ -32,7 +42,7 @@ export async function postWithRating({ postId, userId, hallId, caption, photos, 
       ratingError ??= error;
     }
   }
-  return { ratingError };
+  return photosError ? { ratingError, photosError } : { ratingError };
 }
 
 // Whether the post form can be submitted. Once the meal is posted only its ratings are left, so photos and hall no longer matter.

@@ -1,12 +1,14 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { canPost, postLabel, postWithRating } from '../post-with-rating';
+import { PhotosNotAttachedError } from '../posts';
 
 // postWithRating only sequences publishPost and submitRating, so both are replaced; the real score check is kept.
 type AsyncCall = (...args: unknown[]) => Promise<unknown>;
 const mockPublish = jest.fn<AsyncCall>();
 const mockRate = jest.fn<AsyncCall>();
 jest.mock('../supabase', () => ({ supabase: {} }));
-jest.mock('../posts', () => ({ publishPost: (...args: unknown[]) => mockPublish(...args) }));
+// The real error class is kept, so postWithRating can tell a failed attach from any other failure.
+jest.mock('../posts', () => ({ PhotosNotAttachedError: jest.requireActual<{ PhotosNotAttachedError: unknown }>('../posts').PhotosNotAttachedError, publishPost: (...args: unknown[]) => mockPublish(...args) }));
 jest.mock('../ratings', () => ({ ...jest.requireActual<object>('../ratings'), submitRating: (...args: unknown[]) => mockRate(...args) }));
 
 const photos = [{ id: 'photo-0', base64: 'abc', menuItemId: 'dish-1' }, { id: 'photo-1', base64: 'def', menuItemId: 'dish-2' }];
@@ -65,6 +67,30 @@ describe('postWithRating', () => {
     await expect(postWithRating({ ...meal, ratings: [rating], alreadyPosted: true })).resolves.toEqual({ ratingError: null });
     expect(mockPublish).not.toHaveBeenCalled();
     expect(mockRate).toHaveBeenCalledWith(rating);
+  });
+
+  it('still saves every rating when the post is saved but its extra photos are not attached', async () => {
+    // The member may now choose "Continue without the other photos", so the ratings, the cover's included, must already be saved.
+    const attachFailure = new PhotosNotAttachedError(new Error('network'));
+    mockPublish.mockRejectedValue(attachFailure);
+    await expect(postWithRating({ ...meal, ratings: [rating, otherRating] })).resolves.toEqual({ ratingError: null, photosError: attachFailure });
+    expect(mockRate.mock.calls).toEqual([[rating], [otherRating]]);
+  });
+
+  it('reports both a failed attach and a failed rating', async () => {
+    const attachFailure = new PhotosNotAttachedError(new Error('network'));
+    const failure = new Error('offline');
+    mockPublish.mockRejectedValue(attachFailure);
+    mockRate.mockRejectedValueOnce(failure);
+    await expect(postWithRating({ ...meal, ratings: [rating, otherRating] })).resolves.toEqual({ ratingError: failure, photosError: attachFailure });
+    expect(mockRate).toHaveBeenCalledTimes(2);
+  });
+
+  it('saves the ratings again when a retry still cannot attach the photos', async () => {
+    const attachFailure = new PhotosNotAttachedError(new Error('network'));
+    mockPublish.mockRejectedValue(attachFailure);
+    await expect(postWithRating({ ...meal, ratings: [rating], alreadyPosted: true, photosPending: true })).resolves.toEqual({ ratingError: null, photosError: attachFailure });
+    expect(mockRate.mock.calls).toEqual([[rating]]);
   });
 
   it('finishes attaching the photos before rating when the post was saved without them', async () => {
