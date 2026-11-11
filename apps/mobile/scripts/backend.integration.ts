@@ -452,6 +452,9 @@ describe('Likes and comments', () => {
     expect((await bobsLike()).data).toHaveLength(1);
     expect((await alice.api.from('likes').delete().eq('post_id', post).eq('author_id', bob.id)).error).toBeNull();
     expect((await bobsLike()).data).toHaveLength(1);
+    // Clean up, so later tests that count likes start from what they expect.
+    expect((await bob.api.from('likes').delete().eq('post_id', post)).error).toBeNull();
+    expect((await bobsLike()).data).toHaveLength(0);
   });
 
   test("comments come back oldest first with each author's name", async () => {
