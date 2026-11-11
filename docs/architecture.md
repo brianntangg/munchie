@@ -15,9 +15,11 @@ to `src/` in `tsconfig.json`; restart Metro after changing aliases or entry poin
 | `app/dining/[id].tsx` | Feed filtered by dining hall |
 | `app/post/[id].tsx` | Single post from Supabase |
 | `app/profile/[id].tsx` | A student's name, post count, and posts; opened from a post's author |
+| `app/profile/[id]/connections.tsx` | A student's followers and following lists |
 | `components/ui.tsx`, `theme.ts` | Shared visual components and design tokens |
 | `components/form-ui.tsx` | Form helpers and styles used by login, profile, post, and feed; wraps the shared Button |
 | `components/Feed.tsx`, `PostCard.tsx` | Paginated feed and actual uploaded photos |
+| `components/FollowButton.tsx`, `ProfileStats.tsx` | Follow controls and clickable follower/following counts |
 | `components/StarRating.tsx` | Tap-to-choose 1–5 star input |
 | `components/ProfileGate.tsx` | Loads profile or asks a signed-in user to create one |
 | `lib/auth.tsx` | Session restoration, auth events, foreground token refresh |
@@ -27,6 +29,7 @@ to `src/` in `tsconfig.json`; restart Metro after changing aliases or entry poin
 | `lib/menu.ts` | A hall's dishes (ordered by station, then name) and the dish search used by the post form |
 | `lib/ratings.ts` | Score validation (whole numbers 1–5), submit or replace a dish rating, the current user's score, dish averages |
 | `lib/profiles.ts` | A student's display name with post, follower, and following counts (count-only queries), and count labels |
+| `lib/follows.ts` | Follow mutations, following IDs, and follower/following profile queries |
 | `lib/database.types.ts` | Generated database types; regenerate after schema changes |
 
 ## Authentication and data flow
