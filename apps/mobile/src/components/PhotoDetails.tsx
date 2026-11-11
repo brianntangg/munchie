@@ -1,4 +1,4 @@
-import { Image, Pressable, ScrollView, Text, View } from 'react-native';
+import { Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button, ErrorText, Field, styles } from './form-ui';
 import { StarRating, Stars } from './StarRating';
@@ -68,7 +68,7 @@ export function PhotoDetails({ photos, activeId, hallName, dishes, popular, dish
   const searched = suggestDishes(available, photo.text);
   const shown = typed ? searched.shown : starterDishes(popular, available);
   const total = typed ? searched.total : 0;
-  return <SafeAreaView style={styles.screen} edges={['top']}><ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content}>
+  return <SafeAreaView style={styles.screen} edges={['top']}><KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === 'ios' ? 'padding' : undefined}><ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content}>
     <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.md }}>
       <Text style={styles.heading}>What did you eat?</Text>
       <Text style={type.caption}>{photos.length > 1 ? `Photo ${index + 1} of ${photos.length}` : hallName}</Text>
@@ -116,5 +116,5 @@ export function PhotoDetails({ photos, activeId, hallName, dishes, popular, dish
     <Button title={last ? 'Done' : 'Next photo'} disabled={busy} onPress={() => (last ? onDone() : onSelect(photos[index + 1].id))} />
     {!last && <Button title="Done" secondary disabled={busy} onPress={onDone} />}
     {!locked && <Button title="Remove this photo" secondary disabled={busy} onPress={() => onRemove(photo.id)} />}
-  </ScrollView></SafeAreaView>;
+  </ScrollView></KeyboardAvoidingView></SafeAreaView>;
 }
