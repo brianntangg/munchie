@@ -22,6 +22,7 @@ Status reflects the `main` branch. Update this table as features land.
 | --- | --- | --- |
 | Campus sign-in | Email verification code restricted to Vanderbilt addresses | Built |
 | Profiles | Display name chosen on first sign-in; session persists across launches | Built |
+| Student profiles | Open a student's profile from their post to see their posts and post, follower, and following counts | Built |
 | Profile editing | Change display name and other profile details after setup | Planned |
 
 ### Feed and posts
@@ -40,7 +41,7 @@ Status reflects the `main` branch. Update this table as features land.
 | --- | --- | --- |
 | Hall pages | Each dining hall lists only the posts made there | Built |
 | Open/closed status | Each hall shows whether it is currently open, based on its operating hours | Done: Dining tab shows open/closed from scraped hours |
-| Live menus | Menus synced on a schedule from NetNutrition and attached to the correct hall | Planned |
+| Live menus | Menus synced on a schedule from NetNutrition and attached to the correct hall | Built: weekly GitHub Actions sync imports menus (hall hours come from a migration) |
 | Meal posting windows | Posting limited to the meal periods a hall is serving | Planned |
 
 ### Ratings
@@ -54,7 +55,7 @@ Status reflects the `main` branch. Update this table as features land.
 
 | Feature | Description | Status |
 | --- | --- | --- |
-| Friends | Follow other students and see their posts | Planned |
+| Friends | Follow other students and see their posts | In progress: follows table and follower/following counts built; follow button and following feed planned |
 
 ### Trust and safety
 
@@ -63,6 +64,7 @@ Status reflects the `main` branch. Update this table as features land.
 | Member-only access | Database and storage policies enforce membership and ownership | Built |
 | Moderation | Report and remove inappropriate content | Planned |
 | Upload cleanup | Scheduled removal of photos never attached to a post | Planned |
+| Threat model | Data-flow diagram, STRIDE threats, and OWASP review in [`docs/security/threat-model.md`](security/threat-model.md) | Built |
 
 ## Quality bar
 
