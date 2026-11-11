@@ -131,14 +131,28 @@ describe('Menu items', () => {
 
 describe('Popular dishes', () => {
   // The call behind the starter suggestions on the photo screen (loadPopularDishes in src/lib/menu.ts).
-  test('a member gets a hall\'s dishes, most-rated first, limited to what they ask for', async () => {
+  test('a member gets a hall\'s rated dishes, most-rated first, limited to what they ask for', async () => {
     const rand = halls.find((candidate) => candidate.name === 'Rand')!;
-    const { data, error } = await alice.api.rpc('popular_dishes', { hall_id: rand.id, max_results: 3 });
+    const { data: menu, error: menuError } = await alice.api.from('menu_items').select('id').eq('dining_hall_id', rand.id).order('name').limit(2);
+    expect(menuError).toBeNull();
+    expect(menu).toHaveLength(2);
+    // A separate member rates them, so the Ratings tests below still make Alice's and Bob's first ratings.
+    const carol = await signIn('carol');
+    for (const dish of menu!) expect((await carol.api.from('ratings').insert({ menu_item_id: dish.id, score: 4 })).error).toBeNull();
+    const { data, error } = await alice.api.rpc('popular_dishes', { hall_id: rand.id, max_results: 50 });
     expect(error).toBeNull();
-    expect(data).toHaveLength(3);
-    expect(Object.keys(data[0]).sort()).toEqual(['category', 'id', 'name']);
-    const { data: inHall } = await alice.api.from('menu_items').select('id').eq('dining_hall_id', rand.id).in('id', data.map((dish: { id: string }) => dish.id));
-    expect(inHall).toHaveLength(3);
+    expect(Object.keys(data![0]).sort()).toEqual(['category', 'id', 'name']);
+    const ids = data!.map((dish: { id: string }) => dish.id);
+    expect(ids).toEqual(expect.arrayContaining([menu![0].id, menu![1].id]));
+    // Other tests rate dishes too, so check the order against the actual counts rather than fixed positions.
+    const { data: ratings } = await alice.api.from('ratings').select('menu_item_id').in('menu_item_id', ids);
+    const counts = ids.map((id: string) => ratings!.filter((rating) => rating.menu_item_id === id).length);
+    expect(counts.every((count: number) => count > 0)).toBe(true);
+    expect(counts).toEqual([...counts].sort((x, y) => y - x));
+    const { data: inHall } = await alice.api.from('menu_items').select('id').eq('dining_hall_id', rand.id).in('id', ids);
+    expect(inHall).toHaveLength(ids.length);
+    const { data: one } = await alice.api.rpc('popular_dishes', { hall_id: rand.id, max_results: 1 });
+    expect(one).toHaveLength(1);
   });
 
   test('✗ denies anonymous callers', async () => {
