@@ -130,15 +130,40 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
-                },"posts": {
+                },"post_photos": {
                   Row: {
-                    "author_id": string,"caption": string,"created_at": string,"dining_hall_id": string,"id": string,"menu_item_id": string | null,"photo_path": string
+                    "dining_hall_id": string,"dish_text": string | null,"dish_text_score": number | null,"id": string,"menu_item_id": string | null,"photo_path": string,"post_id": string,"slot": number
                   }
                   Insert: {
-                    "author_id"?: string,"caption"?: string,"created_at"?: string,"dining_hall_id": string,"id"?: string,"menu_item_id"?: string | null,"photo_path": string
+                    "dining_hall_id": string,"dish_text"?: string | null,"dish_text_score"?: number | null,"id"?: string,"menu_item_id"?: string | null,"photo_path": string,"post_id": string,"slot": number
                   }
                   Update: {
-                    "author_id"?: string,"caption"?: string,"created_at"?: string,"dining_hall_id"?: string,"id"?: string,"menu_item_id"?: string | null,"photo_path"?: string
+                    "dining_hall_id"?: string,"dish_text"?: string | null,"dish_text_score"?: number | null,"id"?: string,"menu_item_id"?: string | null,"photo_path"?: string,"post_id"?: string,"slot"?: number
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "post_photos_dish_in_hall_fkey"
+      columns: ["menu_item_id","dining_hall_id"]
+isOneToOne: false
+      referencedRelation: "menu_items"
+      referencedColumns: ["id","dining_hall_id"]
+    },{
+      foreignKeyName: "post_photos_post_fkey"
+      columns: ["post_id","dining_hall_id"]
+isOneToOne: false
+      referencedRelation: "posts"
+      referencedColumns: ["id","dining_hall_id"]
+    }
+                  ]
+                },"posts": {
+                  Row: {
+                    "author_id": string,"caption": string,"created_at": string,"dining_hall_id": string,"dish_text": string | null,"dish_text_score": number | null,"id": string,"menu_item_id": string | null,"photo_path": string
+                  }
+                  Insert: {
+                    "author_id"?: string,"caption"?: string,"created_at"?: string,"dining_hall_id": string,"dish_text"?: string | null,"dish_text_score"?: number | null,"id"?: string,"menu_item_id"?: string | null,"photo_path": string
+                  }
+                  Update: {
+                    "author_id"?: string,"caption"?: string,"created_at"?: string,"dining_hall_id"?: string,"dish_text"?: string | null,"dish_text_score"?: number | null,"id"?: string,"menu_item_id"?: string | null,"photo_path"?: string
                   }
                   Relationships: [
                     {
@@ -205,7 +230,9 @@ isOneToOne: false
             [_ in never]: never
           }
           Functions: {
-            [_ in never]: never
+            "popular_dishes":
+{ Args: { "hall_id": string,"max_results"?: number }; Returns: { "category": string | null,"id": string,"name": string }[]
+                           }
           }
           Enums: {
             [_ in never]: never

@@ -79,6 +79,9 @@ failure-path test (invalid input, constraint violation, or unauthorized).
 | members can read the seeded menu items with their dining hall | S2, S4 | Dishes read back joined to their dining hall |
 | ✗ denies anonymous menu reads | S2, S4 | Signed-out users can't read dishes |
 | ✗ members cannot add menu items | S2, S4 | Members can't insert dishes (only the importer can) |
+| **Popular dishes** | | |
+| a member gets a hall's dishes, most-rated first, limited to what they ask for | S2, S4 | The starter suggestions call returns the requested number of dishes, all from that hall |
+| ✗ denies anonymous callers | S2, S4 | Signed-out users can't call it |
 | **Profile rules** | | |
 | ✗ rejects blank, whitespace-only, and 41-character display names | S2, S4 | Display name rules, at and past the boundary |
 | accepts a 40-character display name | S2, S4 | The longest allowed name is saved |
@@ -102,6 +105,16 @@ failure-path test (invalid input, constraint violation, or unauthorized).
 | the hall filter excludes other halls | S2, S4 | Filtering by hall returns only that hall's posts |
 | post detail joins the author and dining hall | S2, S4 | The detail query returns the author's name and the hall's name |
 | ✗ published posts cannot be edited or deleted, even by their author | S2, S4 | Edits and deletes are rejected, and the stored caption is unchanged |
+| **Posts with several photos** | | |
+| publishing a post records its cover photo and dish | S2, S4 | The cover appears as slot 0 with the post's dish |
+| the author attaches extra photos tagged with other dishes, and a retry changes nothing | S2, S4 | Two extra photos attach in one request; attaching them again adds no rows |
+| the feed returns every photo of the post with its dish name | S2, S4 | The feed query returns three photos in order, each with its dish name or none |
+| ✗ the same dish cannot be tagged on two photos of one post | S2, S4 | A repeated dish is rejected |
+| ✗ a photo can be labeled with free text instead of a menu dish, but not both | S2, S4 | A blank label or a dish plus text is rejected; free text is stored and the feed returns it |
+| ✗ a post cannot have a sixth photo | S2, S4 | Slot 5 is rejected |
+| ✗ another member cannot add photos to someone else's post | S2, S4 | Attaching to another member's post is rejected |
+| ✗ published photos cannot be changed or removed | S2, S4 | Updates and deletes on post photos are rejected |
+| ✗ an attached photo cannot be deleted from storage, but an unattached upload can | S3, S6 | Only the unused upload is removed |
 | **Likes and comments** | | |
 | like counts change after a like and an unlike | S2, S4 | The post's like count goes up by one, then back |
 | ✗ a member can like a post only once | S4 | A second like on the same post is rejected as a duplicate |
@@ -126,6 +139,8 @@ users inside one transaction that rolls back.
 | `likes.test.sql` | 11 | S4, S5 | One like per member per post, members like and unlike only as themselves, likes must point at a real post, and unverified or signed-out users can't read or like |
 | `comments.test.sql` | 16 | S4, S5 | Comments are at most 280 characters with at least one non-whitespace character (newline/tab-only and space-padded comments are rejected), written and deleted only by their author (not even the post's author can delete them), can't be edited or backdated, and unverified or signed-out users can't read or comment |
 | `menu_items.test.sql` | 11 | S4 | One dish name per hall, a dish must belong to a real hall, name length limits, and only members can read dishes (nobody in the app can add, change, or delete them) |
+| `popular_dishes.test.sql` | 8 | S4 | A hall's rated dishes come back most-rated first (ties alphabetically), unrated ones are left out, capped, only from that hall, and nothing is returned to unverified or signed-out users |
+| `post_photos.test.sql` | 29 | S4 | The cover photo is recorded when a post is created; only the author adds extra photos; a dish must be served at the post's hall and appears once per post; at most 5 photos; free-text labels of 1–100 characters (never together with a menu dish), copied to the cover; a 1–5 score only on free text, also copied to the cover; clients cannot write the cover, add an unuploaded or mismatched photo, or change or remove a published photo |
 
 ## Keeping this up to date
 
