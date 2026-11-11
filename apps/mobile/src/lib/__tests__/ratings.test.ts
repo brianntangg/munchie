@@ -27,6 +27,8 @@ jest.mock('../supabase', () => {
   };
   query.select = record(query, 'select');
   query.eq = record(query, 'eq');
+  query.order = record(query, 'order');
+  query.range = record(query, 'range');
   query.update = record(updateQuery, 'update');
   return {
     supabase: {
@@ -82,7 +84,22 @@ describe('submitRating', () => {
     mockInsert.mockResolvedValue({ error: { code: '23505', message: 'duplicate key' } });
     await expect(submitRating({ menuItemId: 'dish-1', score: 2 })).resolves.toBeUndefined();
     expect(queryCalls('update')).toEqual([[{ score: 2 }]]);
-    expect(queryCalls('update.eq')).toEqual([['menu_item_id', 'dish-1']]);
+    expect(queryCalls('update.eq')).toEqual([['menu_item_id', 'dish-1'], ['author_id', 'user-1']]);
+  });
+
+  // Review of #56: the update must name the member's own row, not rely on row-level security alone.
+  it("limits the update to the signed-in member's own rating", async () => {
+    mockInsert.mockResolvedValue({ error: { code: '23505', message: 'duplicate key' } });
+    mockGetSession.mockResolvedValue({ data: { session: { user: { id: 'user-2' } } }, error: null });
+    await submitRating({ menuItemId: 'dish-1', score: 5 });
+    expect(queryCalls('update.eq')).toContainEqual(['author_id', 'user-2']);
+  });
+
+  it('does not update anything when nobody is signed in', async () => {
+    mockInsert.mockResolvedValue({ error: { code: '23505', message: 'duplicate key' } });
+    mockGetSession.mockResolvedValue({ data: { session: null }, error: null });
+    await expect(submitRating({ menuItemId: 'dish-1', score: 5 })).rejects.toThrow('Sign in to rate this dish.');
+    expect(queryCalls('update')).toEqual([]);
   });
 
   it('surfaces other insert errors without updating', async () => {
@@ -149,6 +166,32 @@ describe('loadAverage', () => {
   it('surfaces query errors', async () => {
     const failed = { code: '08006', message: 'connection failure' };
     mockListResult.mockResolvedValue({ data: null, error: failed });
+    await expect(loadAverage('dish-1')).rejects.toBe(failed);
+  });
+
+  // Review of #56: the API returns at most 1,000 rows per request (max_rows in supabase/config.toml), so the
+  // average has to read every page, not just the first.
+  const scores = (count: number, score: number) => Array.from({ length: count }, () => ({ score }));
+
+  it('counts exactly 1,000 ratings and stops after a short page', async () => {
+    mockListResult.mockResolvedValueOnce({ data: scores(1000, 3), error: null }).mockResolvedValueOnce({ data: [], error: null });
+    await expect(loadAverage('dish-1')).resolves.toEqual({ average: 3, count: 1000 });
+    expect(queryCalls('range')).toEqual([[0, 999], [1000, 1999]]);
+  });
+
+  it('includes ratings past the first 1,000', async () => {
+    mockListResult.mockResolvedValueOnce({ data: scores(1000, 1), error: null }).mockResolvedValueOnce({ data: scores(1, 5), error: null });
+    await expect(loadAverage('dish-1')).resolves.toEqual({ average: 1005 / 1001, count: 1001 });
+  });
+
+  it('pages in a stable order so no rating is counted twice or skipped', async () => {
+    await loadAverage('dish-1');
+    expect(queryCalls('order')).toEqual([['id']]);
+  });
+
+  it('surfaces an error on a later page', async () => {
+    const failed = { code: '08006', message: 'connection failure' };
+    mockListResult.mockResolvedValueOnce({ data: scores(1000, 2), error: null }).mockResolvedValueOnce({ data: null, error: failed });
     await expect(loadAverage('dish-1')).rejects.toBe(failed);
   });
 });
