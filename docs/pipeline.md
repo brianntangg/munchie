@@ -34,6 +34,11 @@ flowchart LR
     pip[pip install<br/>pinned requirements.txt] --> ruff[ruff] --> pytest[pytest]
   end
 
+  subgraph security [Security scan]
+    direction TB
+    pins[actions pinned<br/>to commit SHAs] --> npmaudit[npm audit<br/>high or critical] --> pipaudit[pip-audit] --> sast[Semgrep + Bandit<br/>static analysis] --> leaks[gitleaks<br/>whole history]
+  end
+
   coverage[Coverage report<br/>on the run summary]
   build[Build web artifact<br/>munchie-web-commit]
   migrate[Migrate hosted database<br/>supabase db push]
@@ -42,6 +47,7 @@ flowchart LR
 
   trigger --> unit --> integration --> coverage --> build
   trigger --> scraper --> build
+  trigger --> security --> build
   build -- main only --> migrate --> deploy
   build -- sprint tag only --> release
 ```
@@ -52,6 +58,7 @@ flowchart LR
 | Integration tests (local Supabase) | Starts Supabase in the runner, runs the pgTAP database tests, then the backend tests through supabase-js | A database rule or an app-to-backend check fails |
 | Coverage report | Posts a statements/branches/functions/lines table to the run summary | Integration tests failed, so it is skipped |
 | Scraper lint and tests | Installs pinned Python requirements, runs ruff, then pytest on saved pages | Lint errors or a failing parser test |
+| Security scan | Checks that actions are pinned to commit SHAs, `npm audit` on the app's production dependencies, `pip-audit` on the scraper requirements, Semgrep and Bandit static analysis, and a gitleaks secret scan of the whole history | An unpinned action, a High or critical npm advisory not in `.github/npm-audit-allowlist.txt`, a known vulnerability in a scraper requirement, a High (ERROR) Semgrep or High Bandit result, or any leaked secret. Triage: `docs/security/scan-results.md` |
 | Build web artifact (merge or tag only) | Exports the web app and uploads it as `munchie-web-<commit>` (or `munchie-web-<tag>`), plus a `/munchie` build for GitHub Pages | Any check failed, so it is skipped |
 | Migrate hosted database (main only) | Lists pending migrations, then applies them to the hosted Supabase project with `supabase db push` | A credential in the `production` environment is missing, or a migration fails against the hosted database |
 | Deploy to GitHub Pages (main only) | Publishes the Pages build to <https://brianntangg.github.io/munchie> | The build or the migration failed, so it is skipped and the previous site stays up |
@@ -63,6 +70,11 @@ runner, email codes are read from Supabase's local inbox, and scraper tests use
 saved pages instead of the live NetNutrition site. The only secrets are the
 hosted database credentials, which only the migration job can read (see
 [hosted migrations](#hosted-migrations)); the deploy uses GitHub's built-in Pages token.
+Every job's token is read-only unless the job asks for more, and third-party
+actions are pinned to commit SHAs. Dependabot opens pull requests for security
+fixes in npm and pip dependencies and for new action versions
+(`.github/dependabot.yml`). An advisory goes on the npm allowlist only when no fix
+exists yet, with the reason and when to remove it.
 
 ## Continuous delivery
 
