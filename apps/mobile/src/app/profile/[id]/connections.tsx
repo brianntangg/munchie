@@ -18,7 +18,11 @@ export default function ConnectionsScreen() {
     loadConnections(id, kind).then(setConnections).catch((nextError) => setError(message(nextError)));
   }, [id, kind]);
   useFocusEffect(useCallback(() => { load(); }, [load]));
-  if (connections === undefined) return <Screen><LoadingSpinner /></Screen>;
+  if (connections === undefined) {
+    return error
+      ? <Screen><Banner message={error} /><Button label="Retry" onPress={load} /></Screen>
+      : <Screen><LoadingSpinner /></Screen>;
+  }
   return <Screen scroll={false} edges={[]}>
     <FlatList
       data={connections}
