@@ -107,6 +107,8 @@ export default function Post() {
   // Choosing the hall that is already selected changes nothing; clearing would drop the tags without reloading the menu.
   function chooseHall(id: string) {
     if (id === hallId) return;
+    // Extra photos are attached under the post's hall, so a retry after a lost response must not reuse a post saved at the old hall.
+    postId.current = null;
     setHallId(id); setDishes([]); setPopular([]); setPhotos((current) => current.map((photo) => (photo.dish ? { ...photo, dish: null, score: null } : photo))); setDishError('');
   }
   function reset() {
