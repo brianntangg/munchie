@@ -16,13 +16,13 @@ function NamePreview({ name }: { name: string }) {
         <Avatar name={shown || '?'} size={34} />
         <View style={{ flex: 1, gap: 2 }}>
           <Text numberOfLines={1} style={{ fontSize: 14, fontWeight: '700', color: colors.text }}>{shown || 'Your name'}</Text>
-          <Text style={{ fontSize: 12, color: colors.textMuted }}>Rand · just now</Text>
+          <Text style={{ fontSize: 12, color: colors.textMuted }}>Commons · just now</Text>
         </View>
       </View>
-      <MealPhoto dish="chicken" height={150} plate={112} />
+      <MealPhoto dish="pizza" height={150} plate={112} />
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 12, paddingTop: 10 }}>
-        <Text style={{ fontSize: 14, fontWeight: '600', color: colors.text }}>Achiote Chicken</Text>
-        <Stars score={4} />
+        <Text style={{ fontSize: 14, fontWeight: '600', color: colors.text }}>Pepperoni Pizza</Text>
+        <Stars score={5} />
       </View>
     </View>
   </View>;

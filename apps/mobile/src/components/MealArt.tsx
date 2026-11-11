@@ -3,9 +3,12 @@ import { colors, radius } from '@/theme';
 
 // Drawn meals for the sign-in screens: a plate with a simple dish on a colored table. Plain views, so they look the
 // same on web and phones and need no image files.
-export type Dish = 'chicken' | 'lasagna' | 'burger' | 'brownies';
+export type Dish = 'chicken' | 'lasagna' | 'burger' | 'brownies' | 'pizza';
 
-const TABLE: Record<Dish, string> = { chicken: '#B5835A', lasagna: '#3F5B4A', burger: '#2E2A27', brownies: '#E3D2BA' };
+const TABLE: Record<Dish, string> = { chicken: '#B5835A', lasagna: '#3F5B4A', burger: '#2E2A27', brownies: '#E3D2BA', pizza: '#5B7A99' };
+
+// Pepperoni on the pizza, as fractions of the cheese circle: [left, top].
+const PEPPERONI = [[0.2, 0.18], [0.55, 0.12], [0.62, 0.48], [0.25, 0.55], [0.42, 0.32], [0.08, 0.38], [0.45, 0.68]];
 const SHADOW: ViewStyle = { boxShadow: '0px 10px 24px rgba(28, 28, 28, 0.12)' };
 
 function Food({ dish, size }: { dish: Dish; size: number }) {
@@ -18,6 +21,19 @@ function Food({ dish, size }: { dish: Dish; size: number }) {
   if (dish === 'lasagna') return <View style={{ width: size * 0.54, height: size * 0.44, borderRadius: 6, overflow: 'hidden', transform: [{ rotate: '-8deg' }] }}>
     {['#D9572F', '#F5E4B8', '#7A9B4E', '#D9572F', '#F5E4B8', '#D9572F'].map((color, index) => <View key={index} style={{ flex: index % 3 === 0 ? 3 : 1, backgroundColor: color }} />)}
   </View>;
+  if (dish === 'pizza') {
+    const pie = size * 0.7;
+    const cheese = pie * 0.84;
+    const slice = cheese * 0.2;
+    return <View style={{ width: pie, height: pie, borderRadius: pie / 2, backgroundColor: '#D99A4E', alignItems: 'center', justifyContent: 'center' }}>
+      <View style={{ width: cheese, height: cheese, borderRadius: cheese / 2, backgroundColor: '#F2C65A', overflow: 'hidden' }}>
+        {/* Two cuts across the pie make four slices. */}
+        <View style={{ position: 'absolute', left: cheese / 2 - 1, top: 0, width: 2, height: cheese, backgroundColor: '#E0A845' }} />
+        <View style={{ position: 'absolute', top: cheese / 2 - 1, left: 0, height: 2, width: cheese, backgroundColor: '#E0A845' }} />
+        {PEPPERONI.map(([left, top], index) => <View key={index} style={{ position: 'absolute', left: left * cheese, top: top * cheese, width: slice, height: slice, borderRadius: slice / 2, backgroundColor: '#B23A2A', borderWidth: 1, borderColor: '#8E2A1E' }} />)}
+      </View>
+    </View>;
+  }
   if (dish === 'burger') return <View style={{ width: size * 0.58, height: size * 0.42 }}>
     <View style={{ flex: 4, backgroundColor: '#D19449', borderTopLeftRadius: size * 0.3, borderTopRightRadius: size * 0.3 }} />
     <View style={{ flex: 1, backgroundColor: '#7FA650' }} />
