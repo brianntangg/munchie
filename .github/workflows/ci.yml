@@ -136,8 +136,12 @@ jobs:
           python-version: '3.12'
 
       - name: Install Python scanners
-        # pydantic is pinned because Semgrep 1.142 fails to start with newer releases.
-        run: pip install pip-audit==2.10.1 bandit==1.8.6 semgrep==1.142.0 pydantic==2.11.9
+        # Semgrep gets its own virtual environment: its dependencies conflict with pip-audit's. pydantic is pinned
+        # because Semgrep 1.142 fails to start with newer releases.
+        run: |
+          pip install pip-audit==2.10.1 bandit==1.8.6
+          python -m venv "$RUNNER_TEMP/semgrep"
+          "$RUNNER_TEMP/semgrep/bin/pip" install semgrep==1.142.0 pydantic==2.11.9
 
       - name: Audit scraper dependencies
         # Fails on any known vulnerability in the pinned scraper requirements.
@@ -146,7 +150,7 @@ jobs:
       - name: Static analysis (Semgrep)
         # JavaScript/TypeScript, React, Python and GitHub Actions rules. Fails on ERROR-severity (High) results.
         run: >-
-          semgrep scan --metrics=off --error --severity ERROR
+          "$RUNNER_TEMP/semgrep/bin/semgrep" scan --metrics=off --error --severity ERROR
           --config p/javascript --config p/typescript --config p/react --config p/python --config p/github-actions
           --exclude node_modules .
 
