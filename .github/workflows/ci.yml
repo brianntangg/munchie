@@ -87,12 +87,23 @@ jobs:
         run: pytest || [ $? -eq 5 ]
 
   security:
+    # Dependency audit, static analysis and a secret scan of the whole history. Any High finding fails the PR.
+    # How each result was triaged is in docs/security/scan-results.md.
     name: Security scan
     runs-on: ubuntu-latest
 
     steps:
       - name: Check out repository
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          # The secret scan reads every commit, not just the latest one.
+          fetch-depth: 0
+
+      - name: Check that actions are pinned to commit SHAs
+        # A tag like @v4 can be moved to different code; a full commit SHA cannot.
+        run: |
+          unpinned=$(grep -n -E '^[[:space:]]*-?[[:space:]]*uses:' .github/workflows/*.yml | grep -v -E 'uses:[[:space:]]*\./' | grep -v -E '@[0-9a-f]{40}([[:space:]]|$)' || true)
+          if [ -n "$unpinned" ]; then echo "::error::Pin these actions to a full commit SHA (keep the version in a comment):"; echo "$unpinned"; exit 1; fi
 
       - name: Set up Node.js
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
@@ -124,11 +135,36 @@ jobs:
         with:
           python-version: '3.12'
 
+      - name: Install Python scanners
+        # pydantic is pinned because Semgrep 1.142 fails to start with newer releases.
+        run: pip install pip-audit==2.10.1 bandit==1.8.6 semgrep==1.142.0 pydantic==2.11.9
+
       - name: Audit scraper dependencies
         # Fails on any known vulnerability in the pinned scraper requirements.
+        run: pip-audit -r scraper/requirements.txt
+
+      - name: Static analysis (Semgrep)
+        # JavaScript/TypeScript, React, Python and GitHub Actions rules. Fails on ERROR-severity (High) results.
+        run: >-
+          semgrep scan --metrics=off --error --severity ERROR
+          --config p/javascript --config p/typescript --config p/react --config p/python --config p/github-actions
+          --exclude node_modules .
+
+      - name: Static analysis (Bandit)
+        # Scraper code only; the tests use pytest's assert by design (B101). Fails on High-severity results.
+        run: bandit -r scraper -x scraper/tests --severity-level high
+
+      - name: Secret scan (gitleaks, whole history)
+        env:
+          GITLEAKS_VERSION: 8.28.0
         run: |
-          pip install pip-audit==2.10.1
-          pip-audit -r scraper/requirements.txt
+          cd "$RUNNER_TEMP"
+          curl -sSLO "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          curl -sSLO "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_checksums.txt"
+          grep "gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" "gitleaks_${GITLEAKS_VERSION}_checksums.txt" | sha256sum -c -
+          tar xzf "gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" gitleaks
+          cd "$GITHUB_WORKSPACE"
+          "$RUNNER_TEMP/gitleaks" git . --no-banner --redact --exit-code 1
 
   integration:
     name: Integration tests (local Supabase)
@@ -352,9 +388,11 @@ jobs:
           path: dist
 
       - name: Create GitHub release
+        # The tag name is passed through an environment variable, never pasted into the script, so a tag name
+        # containing shell syntax cannot run commands (flagged by Semgrep run-shell-injection).
         env:
           GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
         run: |
-          (cd dist && zip -qr "../munchie-web-${{ github.ref_name }}.zip" .)
-          gh release create "${{ github.ref_name }}" "munchie-web-${{ github.ref_name }}.zip" \
-            --title "Munchie ${{ github.ref_name }}" --generate-notes
+          (cd dist && zip -qr "../munchie-web-$TAG.zip" .)
+          gh release create "$TAG" "munchie-web-$TAG.zip" --title "Munchie $TAG" --generate-notes
