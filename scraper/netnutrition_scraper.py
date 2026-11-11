@@ -741,8 +741,11 @@ def build_hours_sql(all_hours):
             separators=(",", ":")
         ).replace("'", "''")
 
+        # Bandit B608 (SQL built from strings) is suppressed: this writes a migration file that is reviewed in a
+        # pull request, not a query run against the database. hall_id comes from the hard-coded HALL_IDS table
+        # and the hours JSON has its quotes escaped.
         lines.append(
-            f"update public.dining_halls "
+            f"update public.dining_halls "  # nosec B608
             f"set hours = '{payload}'::jsonb "
             f"where id = '{hall_id}';"
         )
