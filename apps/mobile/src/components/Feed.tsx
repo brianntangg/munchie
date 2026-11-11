@@ -8,7 +8,7 @@ import type { ReactNode } from 'react';
 import { message } from '../lib/supabase';
 import { loadPosts, PAGE_SIZE, type FeedPost } from '../lib/posts';
 
-export function Feed({ hallId, authorId, authorIds, title = 'Feed', header, edges = ['top'] }: { hallId?: string; authorId?: string; authorIds?: string[]; title?: string; header?: ReactNode; edges?: ('top' | 'bottom')[] }) {
+export function Feed({ hallId, authorId, authorIds, refreshFilter, title = 'Feed', header, edges = ['top'] }: { hallId?: string; authorId?: string; authorIds?: string[]; refreshFilter?: () => Promise<string[] | void>; title?: string; header?: ReactNode; edges?: ('top' | 'bottom')[] }) {
   const [posts, setPosts] = useState<FeedPost[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -20,11 +20,12 @@ export function Feed({ hallId, authorId, authorIds, title = 'Feed', header, edge
     const version = ++request.current;
     pending.current = true; setRefreshing(true); setLoadingMore(false); setError('');
     try {
-      const next = await loadPosts(undefined, { hallId, authorId, authorIds });
+      const refreshedAuthorIds = await refreshFilter?.();
+      const next = await loadPosts(undefined, { hallId, authorId, authorIds: refreshedAuthorIds ?? authorIds });
       if (version === request.current) { setPosts(next); setHasMore(next.length === PAGE_SIZE); }
     } catch (error) { if (version === request.current) setError(message(error)); }
     finally { if (version === request.current) { pending.current = false; setRefreshing(false); } }
-  }, [hallId, authorId, authorIds]);
+  }, [hallId, authorId, authorIds, refreshFilter]);
   useFocusEffect(useCallback(() => {
     void refresh();
     return () => { request.current++; pending.current = false; };

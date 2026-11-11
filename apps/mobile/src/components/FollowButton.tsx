@@ -13,13 +13,9 @@ export function FollowButton({ userId, onChanged }: { userId: string; onChanged?
   const [error, setError] = useState('');
 
   useEffect(() => {
-    if (!currentUserId || currentUserId === userId) {
-      setLoading(false);
-      return;
-    }
+    if (!currentUserId || currentUserId === userId) return;
 
     let active = true;
-    setLoading(true);
     isFollowing(currentUserId, userId)
       .then((next) => { if (active) setFollowing(next); })
       .catch((nextError) => { if (active) setError(message(nextError)); })
