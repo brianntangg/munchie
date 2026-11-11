@@ -536,6 +536,80 @@ describe('Posts with several photos', () => {
   });
 });
 
+describe('Likes and comments', () => {
+  let post: string;
+  const likeCount = async () => {
+    const { count, error } = await bob.api.from('likes').select('*', { count: 'exact', head: true }).eq('post_id', post);
+    expect(error).toBeNull();
+    return count;
+  };
+
+  beforeAll(async () => {
+    const { data, error } = await alice.api.from('posts').select('id').eq('author_id', alice.id).limit(1).single();
+    expect(error).toBeNull();
+    post = data!.id;
+  });
+
+  test('like counts change after a like and an unlike', async () => {
+    const before = await likeCount();
+    expect((await bob.api.from('likes').insert({ post_id: post })).error).toBeNull();
+    expect(await likeCount()).toBe(before! + 1);
+    expect((await bob.api.from('likes').delete().eq('post_id', post)).error).toBeNull();
+    expect(await likeCount()).toBe(before);
+  });
+
+  test('a member can like a post only once', async () => {
+    expect((await bob.api.from('likes').insert({ post_id: post })).error).toBeNull();
+    expect((await bob.api.from('likes').insert({ post_id: post })).error?.code).toBe('23505');
+  });
+
+  test("cannot like as another member or remove someone else's like", async () => {
+    expect((await alice.api.from('likes').insert({ post_id: post, author_id: bob.id })).error?.code).toBe('42501');
+    // Make sure bob's like exists here rather than relying on the previous test (a duplicate is fine).
+    const { error } = await bob.api.from('likes').insert({ post_id: post });
+    expect([undefined, '23505']).toContain(error?.code);
+    const bobsLike = () => bob.api.from('likes').select('post_id').eq('post_id', post).eq('author_id', bob.id);
+    expect((await bobsLike()).data).toHaveLength(1);
+    expect((await alice.api.from('likes').delete().eq('post_id', post).eq('author_id', bob.id)).error).toBeNull();
+    expect((await bobsLike()).data).toHaveLength(1);
+    // Clean up, so later tests that count likes start from what they expect.
+    expect((await bob.api.from('likes').delete().eq('post_id', post)).error).toBeNull();
+    expect((await bobsLike()).data).toHaveLength(0);
+  });
+
+  test("comments come back oldest first with each author's name", async () => {
+    expect((await bob.api.from('comments').insert({ post_id: post, body: 'First' })).error).toBeNull();
+    expect((await alice.api.from('comments').insert({ post_id: post, body: 'Second' })).error).toBeNull();
+    const { data, error } = await bob.api.from('comments').select('body, profiles(display_name)')
+      .eq('post_id', post).order('created_at').order('id');
+    expect(error).toBeNull();
+    expect(data?.slice(-2)).toEqual([
+      { body: 'First', profiles: { display_name: expect.any(String) } },
+      { body: 'Second', profiles: { display_name: longName } },
+    ]);
+  });
+
+  test('rejects blank, whitespace-only, and 281-character comments', async () => {
+    for (const body of ['   ', '\n\t', 'x'.repeat(281), `Hi${' '.repeat(300)}`]) {
+      expect((await bob.api.from('comments').insert({ post_id: post, body })).error?.code).toBe('23514');
+    }
+  });
+
+  test("a member can delete their own comment but not someone else's", async () => {
+    const { data, error } = await bob.api.from('comments').insert({ post_id: post, body: 'Delete me' }).select('id').single();
+    expect(error).toBeNull();
+    await alice.api.from('comments').delete().eq('id', data!.id);
+    expect((await bob.api.from('comments').select('id').eq('id', data!.id)).data).toHaveLength(1);
+    expect((await bob.api.from('comments').delete().eq('id', data!.id)).error).toBeNull();
+    expect((await bob.api.from('comments').select('id').eq('id', data!.id)).data).toHaveLength(0);
+  });
+
+  test('denies anonymous like and comment reads', async () => {
+    expect((await anonymous.from('likes').select('post_id')).error).not.toBeNull();
+    expect((await anonymous.from('comments').select('id')).error).not.toBeNull();
+  });
+});
+
 describe('Sign-out', () => {
   test('signing out removes access', async () => {
     expect((await alice.api.auth.signOut({ scope: 'local' })).error).toBeNull();

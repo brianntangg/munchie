@@ -23,7 +23,32 @@ export type Database = {
           }
         },"public": {
           Tables: {
-            "dining_halls": {
+            "comments": {
+                  Row: {
+                    "author_id": string,"body": string,"created_at": string,"id": string,"post_id": string
+                  }
+                  Insert: {
+                    "author_id"?: string,"body": string,"created_at"?: string,"id"?: string,"post_id": string
+                  }
+                  Update: {
+                    "author_id"?: string,"body"?: string,"created_at"?: string,"id"?: string,"post_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "comments_author_id_fkey"
+      columns: ["author_id"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "comments_post_id_fkey"
+      columns: ["post_id"]
+isOneToOne: false
+      referencedRelation: "posts"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"dining_halls": {
                   Row: {
                     "hours": Json | null,"id": string,"name": string
                   }
@@ -58,6 +83,31 @@ isOneToOne: false
       columns: ["follower_id"]
 isOneToOne: false
       referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"likes": {
+                  Row: {
+                    "author_id": string,"created_at": string,"id": string,"post_id": string
+                  }
+                  Insert: {
+                    "author_id"?: string,"created_at"?: string,"id"?: string,"post_id": string
+                  }
+                  Update: {
+                    "author_id"?: string,"created_at"?: string,"id"?: string,"post_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "likes_author_id_fkey"
+      columns: ["author_id"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "likes_post_id_fkey"
+      columns: ["post_id"]
+isOneToOne: false
+      referencedRelation: "posts"
       referencedColumns: ["id"]
     }
                   ]

@@ -56,6 +56,8 @@ protection is a UI convenience, not a substitute for database permissions.
 | `post_photos` | A post's photos in slots 0–4 (at most 5), each with an optional menu dish served at the post's hall (once per post) or optional free text of 1–100 characters, never both. Menu dishes are rated in `ratings`; free text can carry its own 1–5 score (`dish_text_score`), saved with the photo and never counted in a dish's average. Slot 0 is the cover and is recorded by a trigger when the post is created; the author adds slots 1–4 afterward; members read; no updates or deletes |
 | `ratings` | Author, menu item, score (whole number 1–5), server timestamps; one rating per member per dish; members read all ratings and create or change only their own score; no deletes |
 | `follows` | Follower (from the session) and followee, server timestamp; one-way; no self-follows or duplicates; members read all follows and create or delete only their own |
+| `likes` | Post and liker (from the session), server timestamp; one like per member per post; members read all likes and add or remove only their own |
+| `comments` | Post, author (from the session), text (at most 280 characters, not blank or whitespace-only), server timestamp; members read all comments, add their own, and delete only their own; no edits |
 | `food-photos` bucket | Private JPEGs up to 5 MB; members read; uploads must be in the current user's folder |
 
 Posts require an existing uploaded photo at `user-id/post-id.jpg`. Clients cannot
