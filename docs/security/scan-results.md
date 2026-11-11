@@ -20,7 +20,7 @@ Counted before any fix. "Accepted" means accepted risk.
 
 | Tool | Critical | High | Medium | Low | True positive | False positive | Accepted |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| npm audit | 0 | 7 packages | 9 | 1 | 7 High fixed; 1 High accepted | 0 | 1 High (see below); Medium/Low not triaged one by one, since they don't block |
+| npm audit | 0 | 7 packages | 9 | 1 | All 7 High: 4 packages fixed, 3 packages accepted | 0 | 1 advisory covering 3 packages (`decode-uri-component` → `query-string` → `expo-router`). Medium/Low not triaged one by one, since they don't block |
 | pip-audit | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
 | Semgrep | 0 | 1 | 0 | 0 | 1 (fixed) | 0 | 0 |
 | Bandit | 0 | 0 | 1 | 39 | 0 | 40 | 0 |
