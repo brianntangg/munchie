@@ -51,3 +51,27 @@ export function starterDishes(popular: MenuItem[], available: MenuItem[], limit 
   const rated = popular.filter((item) => open.has(item.id)).slice(0, limit);
   return rated.length ? { shown: rated, popular: true } : { shown: available.slice(0, limit), popular: false };
 }
+
+const normalize = (name: string) => name.trim().replace(/\s+/g, ' ').toLowerCase();
+
+// The menu dish named exactly what the member typed (ignoring case and spacing), or null when none or several are.
+export function exactDish(items: MenuItem[], text: string): MenuItem | null {
+  const typed = normalize(text);
+  if (!typed) return null;
+  const matches = items.filter((item) => normalize(item.name) === typed);
+  return matches.length === 1 ? matches[0] : null;
+}
+
+// Typing a dish's exact menu name without tapping the suggestion should still count as that dish, so its rating feeds the
+// dish's average instead of being kept as free text. Each typed label that names a menu dish not already tagged on another
+// photo becomes that dish, keeping its score. Photos are checked in order, so the first photo to name a dish gets it.
+export function labelTypedDishes<T extends { dish: MenuItem | null; text: string }>(photos: T[], items: MenuItem[]): T[] {
+  const taken = new Set(photos.flatMap((photo) => (photo.dish ? [photo.dish.id] : [])));
+  return photos.map((photo) => {
+    if (photo.dish) return photo;
+    const match = exactDish(items.filter((item) => !taken.has(item.id)), photo.text);
+    if (!match) return photo;
+    taken.add(match.id);
+    return { ...photo, dish: match, text: '' };
+  });
+}

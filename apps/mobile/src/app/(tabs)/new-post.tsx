@@ -8,7 +8,7 @@ import { randomUUID } from 'expo-crypto';
 import { useAuth } from '@/lib/auth';
 import { message, supabase } from '@/lib/supabase';
 import type { Tables } from '@/lib/database.types';
-import { loadMenuItems, loadPopularDishes, type MenuItem } from '@/lib/menu';
+import { labelTypedDishes, loadMenuItems, loadPopularDishes, type MenuItem } from '@/lib/menu';
 import { canPost, postLabel, postWithRating } from '@/lib/post-with-rating';
 import { MAX_PHOTOS } from '@/lib/posts';
 import { Button, ErrorText, Field, styles } from '@/components/form-ui';
@@ -113,15 +113,19 @@ export default function Post() {
     setPhotos([]); setEditing(null); setCaption(''); setHallId(''); setDishes([]); setPopular([]); setDishError(''); setPosted(false); setPhotosPending(false); postId.current = null;
   }
   // Menu dishes are rated in the ratings table; a typed label's score travels with its photo.
-  const ratings = photos.flatMap((photo) => (photo.dish && photo.score !== null ? [{ menuItemId: photo.dish.id, score: photo.score }] : []));
+  const ratingsOf = (list: PhotoDraft[]) => list.flatMap((photo) => (photo.dish && photo.score !== null ? [{ menuItemId: photo.dish.id, score: photo.score }] : []));
+  const ratings = ratingsOf(photos);
   const typedLabel = (photo: PhotoDraft) => (!photo.dish && photo.text.trim()) || undefined;
   const typedScores = photos.filter((photo) => typedLabel(photo) && photo.score !== null).length;
   async function submit() {
     if (!canPost({ posted, photoCount: photos.length, hallId }) || submitting.current) return;
     submitting.current = true; setBusy(true); setError('');
     postId.current ??= randomUUID();
+    // Before the first publish, a typed label that is exactly a menu dish's name becomes that dish, so its rating counts.
+    const labeled = posted ? photos : labelTypedDishes(photos, dishes);
+    if (labeled.some((photo, index) => photo !== photos[index])) setPhotos(labeled);
     try {
-      const { ratingError, photosError } = await postWithRating({ postId: postId.current, userId, hallId, caption, photos: photos.map((photo) => ({ id: photo.id, base64: photo.base64, menuItemId: photo.dish?.id, dishText: typedLabel(photo), dishTextScore: typedLabel(photo) && photo.score !== null ? photo.score : undefined })), ratings, alreadyPosted: posted, photosPending });
+      const { ratingError, photosError } = await postWithRating({ postId: postId.current, userId, hallId, caption, photos: labeled.map((photo) => ({ id: photo.id, base64: photo.base64, menuItemId: photo.dish?.id, dishText: typedLabel(photo), dishTextScore: typedLabel(photo) && photo.score !== null ? photo.score : undefined })), ratings: ratingsOf(labeled), alreadyPosted: posted, photosPending });
       if (photosError) {
         // The post is live and the ratings were attempted, so "Continue without the other photos" loses only those photos.
         setPosted(true); setPhotosPending(true);

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
-import { loadMenuItems, loadPopularDishes, POPULAR_FETCH, starterDishes, suggestDishes, SUGGESTION_COUNT, type MenuItem } from '../menu';
+import { exactDish, labelTypedDishes, loadMenuItems, loadPopularDishes, POPULAR_FETCH, starterDishes, suggestDishes, SUGGESTION_COUNT, type MenuItem } from '../menu';
 
 // Replace the Supabase client with a fake whose responses each test controls.
 // Query methods record their arguments in mockQueryCall; awaiting a list query resolves to mockListResult().
@@ -128,5 +128,40 @@ describe('starterDishes', () => {
 
   it('offers nothing when the menu is empty', () => {
     expect(starterDishes([], [])).toEqual({ shown: [], popular: false });
+  });
+});
+
+describe('exactDish', () => {
+  const menu = [dish('1', 'Achiote Chicken'), dish('2', 'Cilantro-Lime Rice'), dish('3', 'Pizza'), dish('4', 'Pizza')];
+
+  it('finds the dish named exactly what was typed, ignoring case and spacing', () => {
+    expect(exactDish(menu, 'achiote chicken')).toEqual(menu[0]);
+    expect(exactDish(menu, '  Cilantro-Lime   Rice ')).toEqual(menu[1]);
+  });
+
+  it('finds nothing for a partial name, an empty string, or a name two dishes share', () => {
+    expect(exactDish(menu, 'Achiote')).toBeNull();
+    expect(exactDish(menu, '   ')).toBeNull();
+    expect(exactDish(menu, 'pizza')).toBeNull();
+  });
+});
+
+describe('labelTypedDishes', () => {
+  const chicken = dish('1', 'Achiote Chicken');
+  const rice = dish('2', 'Cilantro-Lime Rice');
+  const photo = (id: string, text: string, score: number | null, picked: MenuItem | null = null) => ({ id, dish: picked, text, score });
+
+  it('turns a typed exact menu name into that dish, keeping its score so it counts as a rating', () => {
+    expect(labelTypedDishes([photo('a', 'achiote chicken', 4)], [chicken, rice])).toEqual([photo('a', '', 4, chicken)]);
+  });
+
+  it('keeps free text that is not a menu name, and photos already tagged with a dish', () => {
+    const photos = [photo('a', "Grandma's soup", 5), photo('b', '', 3, rice)];
+    expect(labelTypedDishes(photos, [chicken, rice])).toEqual(photos);
+  });
+
+  it('never tags a dish twice: a dish already on another photo, or named by an earlier one, stays text', () => {
+    const photos = [photo('a', '', 2, chicken), photo('b', 'Achiote Chicken', 4), photo('c', 'cilantro-lime rice', 5), photo('d', 'Cilantro-Lime Rice', 1)];
+    expect(labelTypedDishes(photos, [chicken, rice])).toEqual([photos[0], photos[1], photo('c', '', 5, rice), photos[3]]);
   });
 });
