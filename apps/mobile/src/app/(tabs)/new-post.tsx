@@ -78,12 +78,19 @@ export default function Post() {
       }
       const result = camera ? await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 1 }) : await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 1, allowsMultipleSelection: true, selectionLimit: room });
       if (result.canceled) return;
+      // One photo that cannot be prepared must not throw away the rest of the selection.
       const added: PhotoDraft[] = [];
-      for (const asset of result.assets.slice(0, room)) added.push(await prepare(asset));
-      setPhotos((current) => [...current, ...added].slice(0, MAX_PHOTOS));
-      if (added.length) setEditing(added[0].id);
-      // The first photo is stored under the post's id, so a different set of photos needs a new post id.
-      postId.current = null;
+      let failed = 0;
+      for (const asset of result.assets.slice(0, room)) {
+        try { added.push(await prepare(asset)); } catch { failed += 1; }
+      }
+      if (added.length) {
+        setPhotos((current) => [...current, ...added].slice(0, MAX_PHOTOS));
+        setEditing(added[0].id);
+        // The first photo is stored under the post's id, so a different set of photos needs a new post id.
+        postId.current = null;
+      }
+      if (failed) setError(failed === 1 ? 'One photo could not be prepared. Please choose another.' : `${failed} photos could not be prepared. Please choose others.`);
     } catch (error) { setError(message(error)); } finally { setBusy(false); }
   }
   function changePhoto(id: string, change: Partial<Pick<PhotoDraft, 'dish' | 'text' | 'score'>>) {
