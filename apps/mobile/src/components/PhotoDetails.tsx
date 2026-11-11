@@ -110,8 +110,10 @@ export function PhotoDetails({ photos, activeId, hallName, dishes, popular, dish
     {photo.dish || (typed && !locked) ? <View style={{ gap: spacing.md }}>
       <Text style={styles.label}>Rate this dish (optional)</Text>
       <StarRating value={photo.score} onChange={(score) => onChange(photo.id, { score })} disabled={busy} />
-      <Text style={styles.body}>{photo.score === null ? 'Tap a star to rate it, or leave it unrated.' : `You gave it ${photo.score} of 5.`}</Text>
-      {photo.score !== null && <Button title="Clear rating" secondary disabled={busy} onPress={() => onChange(photo.id, { score: null })} />}
+      <Text style={styles.body}>{photo.score === null ? 'Tap a star to rate it, or leave it unrated.' : `You gave it ${photo.score} of 5.${locked ? ' A saved rating can be changed but not removed.' : ''}`}</Text>
+      {/* Once the post is published its ratings may already be saved, and a saved rating cannot be deleted, so clearing it here
+          would only hide stars that stay on the post. */}
+      {photo.score !== null && !locked && <Button title="Clear rating" secondary disabled={busy} onPress={() => onChange(photo.id, { score: null })} />}
     </View> : !!typed && photo.score !== null && <Stars score={photo.score} />}
 
     <Button title={last ? 'Done' : 'Next photo'} disabled={busy} onPress={() => (last ? onDone() : onSelect(photos[index + 1].id))} />
