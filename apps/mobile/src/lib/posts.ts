@@ -20,10 +20,14 @@ async function loadDishes(rows: PostRow[]): Promise<FeedPost['dish'][]> {
   }
   return rows.map((row) => (row.menu_item_id && row.menu_items ? { name: row.menu_items.name, score: scores.get(`${row.author_id}:${row.menu_item_id}`) ?? null } : null));
 }
-export async function loadPosts(cursor?: { created_at: string; id: string }, filters?: { hallId?: string; authorId?: string }): Promise<FeedPost[]> {
+export async function loadPosts(cursor?: { created_at: string; id: string }, filters?: { hallId?: string; authorId?: string; authorIds?: string[] }): Promise<FeedPost[]> {
   let query = supabase.from('posts').select(POST_COLUMNS).order('created_at', { ascending: false }).order('id', { ascending: false }).limit(PAGE_SIZE);
   if (filters?.hallId) query = query.eq('dining_hall_id', filters.hallId);
   if (filters?.authorId) query = query.eq('author_id', filters.authorId);
+  if (filters?.authorIds) {
+    if (!filters.authorIds.length) return [];
+    query = query.in('author_id', filters.authorIds);
+  }
   if (cursor) query = query.or(`created_at.lt.${cursor.created_at},and(created_at.eq.${cursor.created_at},id.lt.${cursor.id})`);
   const { data, error } = await query;
   if (error) throw error;

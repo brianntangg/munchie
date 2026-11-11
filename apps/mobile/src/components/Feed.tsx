@@ -8,7 +8,7 @@ import type { ReactNode } from 'react';
 import { message } from '../lib/supabase';
 import { loadPosts, PAGE_SIZE, type FeedPost } from '../lib/posts';
 
-export function Feed({ hallId, authorId, title = 'Feed', header, edges = ['top'] }: { hallId?: string; authorId?: string; title?: string; header?: ReactNode; edges?: ('top' | 'bottom')[] }) {
+export function Feed({ hallId, authorId, authorIds, title = 'Feed', header, edges = ['top'] }: { hallId?: string; authorId?: string; authorIds?: string[]; title?: string; header?: ReactNode; edges?: ('top' | 'bottom')[] }) {
   const [posts, setPosts] = useState<FeedPost[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -20,11 +20,11 @@ export function Feed({ hallId, authorId, title = 'Feed', header, edges = ['top']
     const version = ++request.current;
     pending.current = true; setRefreshing(true); setLoadingMore(false); setError('');
     try {
-      const next = await loadPosts(undefined, { hallId, authorId });
+      const next = await loadPosts(undefined, { hallId, authorId, authorIds });
       if (version === request.current) { setPosts(next); setHasMore(next.length === PAGE_SIZE); }
     } catch (error) { if (version === request.current) setError(message(error)); }
     finally { if (version === request.current) { pending.current = false; setRefreshing(false); } }
-  }, [hallId, authorId]);
+  }, [hallId, authorId, authorIds]);
   useFocusEffect(useCallback(() => {
     void refresh();
     return () => { request.current++; pending.current = false; };
@@ -34,7 +34,7 @@ export function Feed({ hallId, authorId, title = 'Feed', header, edges = ['top']
     const version = ++request.current;
     pending.current = true; setLoadingMore(true); setError('');
     try {
-      const next = await loadPosts(posts[posts.length - 1], { hallId, authorId });
+      const next = await loadPosts(posts[posts.length - 1], { hallId, authorId, authorIds });
       if (version === request.current) { setPosts((current) => [...current, ...next]); setHasMore(next.length === PAGE_SIZE); }
     } catch (error) { if (version === request.current) setError(message(error)); }
     finally { if (version === request.current) { pending.current = false; setLoadingMore(false); } }
