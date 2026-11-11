@@ -1,0 +1,6 @@
+# High or critical npm advisories the Security scan job accepts for now, one advisory URL per line.
+# Every entry needs a reason and the condition for removing it. Keep this list short.
+
+# decode-uri-component (through query-string, inside expo-router): denial of service on malformed percent-encoded URLs.
+# The only fix is expo-router 58, which needs the Expo SDK 58 upgrade. Remove this after that upgrade.
+https://github.com/advisories/GHSA-qr28-fpjm-wq7f

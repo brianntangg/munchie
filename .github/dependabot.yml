@@ -1,0 +1,8 @@
+# Security updates for npm and pip are turned on in the repository settings and open their own pull requests.
+# This file adds weekly version updates for the GitHub Actions the workflows pin to commit SHAs.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
