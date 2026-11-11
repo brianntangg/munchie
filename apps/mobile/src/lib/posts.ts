@@ -1,24 +1,52 @@
 import { decode } from 'base64-arraybuffer';
 import { supabase } from './supabase';
 import type { Tables } from './database.types';
+import { isValidScore } from './ratings';
 
-// `dish` is the menu item the post is about, with its author's current score for it (null if they have not rated it).
-export type FeedPost = Tables<'posts'> & { profiles: { display_name: string }; dining_halls: { name: string }; imageUrl: string | null; dish: { name: string; score: number | null } | null };
+// `dish` is what the photo shows: a menu item with its author's current score for it (null if they have not rated it),
+// or free text the author typed, with the score they gave it when posting (null if they did not).
+export type FeedPhoto = { id: string; imageUrl: string | null; dish: { name: string; score: number | null } | null };
+// `photos` are in display order; the first is the cover.
+export type FeedPost = Tables<'posts'> & { profiles: { display_name: string }; dining_halls: { name: string }; photos: FeedPhoto[] };
 export const PAGE_SIZE = 20;
-const POST_COLUMNS = '*, profiles!inner(display_name), dining_halls!inner(name), menu_items(name)';
-type PostRow = Tables<'posts'> & { menu_items: { name: string } | null };
+// The database enforces the same limit on a post's photo slots.
+export const MAX_PHOTOS = 5;
+const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
+const POST_COLUMNS = '*, profiles!inner(display_name), dining_halls!inner(name), post_photos(id, slot, photo_path, menu_item_id, dish_text, dish_text_score, menu_items(name))';
+type PhotoRow = Pick<Tables<'post_photos'>, 'id' | 'slot' | 'photo_path' | 'menu_item_id' | 'dish_text' | 'dish_text_score'> & { menu_items: { name: string } | null };
+type PostRow = Tables<'posts'> & { profiles: { display_name: string }; dining_halls: { name: string }; post_photos: PhotoRow[] };
 
-// Ratings stay the single source of truth, so each post's score is looked up as its author's rating of the dish.
-async function loadDishes(rows: PostRow[]): Promise<FeedPost['dish'][]> {
-  const withDish = rows.filter((row) => row.menu_item_id && row.menu_items);
+// Ratings stay the single source of truth, so a photo's score is looked up as its post author's rating of the dish.
+async function loadScores(rows: PostRow[]): Promise<Map<string, number>> {
+  const tagged = rows.flatMap((row) => row.post_photos.filter((photo) => photo.menu_item_id).map((photo) => ({ authorId: row.author_id, itemId: photo.menu_item_id! })));
   const scores = new Map<string, number>();
-  if (withDish.length) {
-    const { data, error } = await supabase.from('ratings').select('author_id, menu_item_id, score')
-      .in('menu_item_id', [...new Set(withDish.map((row) => row.menu_item_id!))]).in('author_id', [...new Set(withDish.map((row) => row.author_id))]);
+  if (!tagged.length) return scores;
+  const { data, error } = await supabase.from('ratings').select('author_id, menu_item_id, score')
+    .in('menu_item_id', [...new Set(tagged.map((tag) => tag.itemId))]).in('author_id', [...new Set(tagged.map((tag) => tag.authorId))]);
+  if (error) throw error;
+  for (const rating of data) scores.set(`${rating.author_id}:${rating.menu_item_id}`, rating.score);
+  return scores;
+}
+
+async function toFeedPosts(rows: PostRow[]): Promise<FeedPost[]> {
+  const ordered = rows.map((row) => [...row.post_photos].sort((a, b) => a.slot - b.slot));
+  const paths = ordered.flatMap((photos) => photos.map((photo) => photo.photo_path));
+  let urls: { signedUrl: string | null }[] = [];
+  if (paths.length) {
+    const { data, error } = await supabase.storage.from('food-photos').createSignedUrls(paths, 3600);
     if (error) throw error;
-    for (const rating of data) scores.set(`${rating.author_id}:${rating.menu_item_id}`, rating.score);
+    urls = data;
   }
-  return rows.map((row) => (row.menu_item_id && row.menu_items ? { name: row.menu_items.name, score: scores.get(`${row.author_id}:${row.menu_item_id}`) ?? null } : null));
+  const scores = await loadScores(rows);
+  let next = 0;
+  return rows.map(({ post_photos: _photos, ...post }, index) => ({
+    ...post,
+    photos: ordered[index].map((photo) => ({
+      id: photo.id,
+      imageUrl: urls[next++]?.signedUrl || null,
+      dish: photo.menu_item_id && photo.menu_items ? { name: photo.menu_items.name, score: scores.get(`${post.author_id}:${photo.menu_item_id}`) ?? null } : photo.dish_text ? { name: photo.dish_text, score: photo.dish_text_score } : null,
+    })),
+  }));
 }
 export async function loadPosts(cursor?: { created_at: string; id: string }, filters?: { hallId?: string; authorId?: string }): Promise<FeedPost[]> {
   let query = supabase.from('posts').select(POST_COLUMNS).order('created_at', { ascending: false }).order('id', { ascending: false }).limit(PAGE_SIZE);
@@ -28,39 +56,80 @@ export async function loadPosts(cursor?: { created_at: string; id: string }, fil
   const { data, error } = await query;
   if (error) throw error;
   if (!data.length) return [];
-  const { data: urls, error: urlError } = await supabase.storage.from('food-photos').createSignedUrls(data.map((post) => post.photo_path), 3600);
-  if (urlError) throw urlError;
-  const dishes = await loadDishes(data);
-  return data.map((post, index) => ({ ...post, imageUrl: urls[index]?.signedUrl || null, dish: dishes[index] }));
+  return toFeedPosts(data);
 }
 
-// Stable IDs make retrying an interrupted submission safe.
-export async function publishPost({ id, userId, hallId, menuItemId, caption, base64 }: { id: string; userId: string; hallId: string; menuItemId?: string; caption: string; base64: string }) {
-  const path = `${userId}/${id}.jpg`;
-  const { data: existing, error: checkError } = await supabase.from('posts').select('id').eq('id', id).maybeSingle();
-  if (checkError) throw checkError;
-  if (existing) return;
-  const bytes = decode(base64);
-  if (bytes.byteLength > 5 * 1024 * 1024) throw new Error('Choose a smaller photo (maximum 5 MB).');
-  const { error: uploadError } = await supabase.storage.from('food-photos').upload(path, bytes, { contentType: 'image/jpeg', upsert: false });
-  // A previous attempt may have uploaded the photo before losing connectivity.
-  if (uploadError && !('statusCode' in uploadError && String(uploadError.statusCode) === '409')) throw uploadError;
-  const { error } = await supabase.from('posts').insert({ id, author_id: userId, dining_hall_id: hallId, ...(menuItemId ? { menu_item_id: menuItemId } : {}), caption: caption.trim(), photo_path: path });
-  if (error) {
-    const { data: committed, error: lookupError } = await supabase.from('posts').select('id').eq('id', id).maybeSingle();
-    if (committed) return;
-    // Never delete the photo when commit status is unknown. RLS also protects published images.
-    if (!lookupError) await supabase.storage.from('food-photos').remove([path]);
-    throw error;
+// The first photo is the post's cover and is stored under the post's id; its own `id` is not used.
+// Every other photo needs a stable `id` so a retry never uploads or attaches it twice.
+// A photo names a menu dish (`menuItemId`) or free text (`dishText`), not both. A menu dish is rated separately
+// (see post-with-rating); free text has no menu item, so its optional score (`dishTextScore`) is saved with the photo.
+export type PostPhotoInput = { id: string; base64: string; menuItemId?: string; dishText?: string; dishTextScore?: number };
+export const MAX_DISH_TEXT = 100;
+
+// Only the dish columns a photo actually uses are sent, so an unlabeled photo stays null in both.
+const dishColumns = ({ menuItemId, dishText, dishTextScore }: PostPhotoInput) => ({
+  ...(menuItemId ? { menu_item_id: menuItemId } : {}),
+  ...(dishText ? { dish_text: dishText.trim() } : {}),
+  ...(dishText && dishTextScore !== undefined ? { dish_text_score: dishTextScore } : {}),
+});
+
+// Thrown once the post itself is saved but its extra photos could not be attached. The post is already live,
+// so the caller must not change the photos, hall or labels: retrying the same submission only finishes attaching.
+export class PhotosNotAttachedError extends Error {
+  constructor(readonly attachError: unknown) {
+    super('Your meal was posted, but the other photos were not attached.');
+    this.name = 'PhotosNotAttachedError';
   }
+}
+
+// Stable IDs make retrying an interrupted submission safe. A retry after the post was saved only finishes attaching the extra photos.
+export async function publishPost({ id, userId, hallId, caption, photos }: { id: string; userId: string; hallId: string; caption: string; photos: PostPhotoInput[] }) {
+  if (!photos.length) throw new Error('Add a photo to share your meal.');
+  if (photos.length > MAX_PHOTOS) throw new Error(`Share up to ${MAX_PHOTOS} photos per meal.`);
+  const dishes = photos.flatMap((photo) => (photo.menuItemId ? [photo.menuItemId] : []));
+  if (new Set(dishes).size !== dishes.length) throw new Error('Tag each dish on only one photo.');
+  if (photos.some((photo) => photo.menuItemId && photo.dishText)) throw new Error('Name a menu dish or type your own, not both.');
+  if (photos.some((photo) => photo.dishText !== undefined && !(photo.dishText.trim().length >= 1 && photo.dishText.trim().length <= MAX_DISH_TEXT))) throw new Error(`Describe each photo in 1 to ${MAX_DISH_TEXT} characters.`);
+  if (photos.some((photo) => photo.dishTextScore !== undefined && photo.dishText === undefined)) throw new Error('Only a labeled photo can be rated.');
+  if (photos.some((photo) => photo.dishTextScore !== undefined && !isValidScore(photo.dishTextScore))) throw new Error('Choose a score from 1 to 5.');
+  const { data: existing, error: checkError } = await supabase.from('posts').select('id, author_id').eq('id', id).maybeSingle();
+  if (checkError) throw checkError;
+  if (existing && existing.author_id !== userId) throw new Error('This post belongs to another member.');
+  const files = photos.map((photo, index) => {
+    const bytes = decode(photo.base64);
+    if (bytes.byteLength > MAX_PHOTO_BYTES) throw new Error('Choose a smaller photo (maximum 5 MB).');
+    return { photo, bytes, path: `${userId}/${index === 0 ? id : photo.id}.jpg` };
+  });
+  const [cover, ...extras] = files;
+  for (const file of existing ? extras : files) {
+    const { error: uploadError } = await supabase.storage.from('food-photos').upload(file.path, file.bytes, { contentType: 'image/jpeg', upsert: false });
+    // A previous attempt may have uploaded the photo before losing connectivity.
+    if (uploadError && !('statusCode' in uploadError && String(uploadError.statusCode) === '409')) throw uploadError;
+  }
+  if (!existing) {
+    const { error } = await supabase.from('posts').insert({ id, author_id: userId, dining_hall_id: hallId, ...dishColumns(cover.photo), caption: caption.trim(), photo_path: cover.path });
+    if (error) {
+      const { data: committed, error: lookupError } = await supabase.from('posts').select('id').eq('id', id).maybeSingle();
+      if (!committed) {
+        // Never delete the photos when commit status is unknown. RLS also protects published images.
+        if (!lookupError) await supabase.storage.from('food-photos').remove(files.map((file) => file.path));
+        throw error;
+      }
+    }
+  }
+  if (!extras.length) return;
+  // One request, so the extra photos are all attached or none are; ignoring duplicates makes a retry harmless.
+  const { error: attachError } = await supabase.from('post_photos').upsert(
+    extras.map((file, index) => ({ id: file.photo.id, post_id: id, dining_hall_id: hallId, slot: index + 1, photo_path: file.path, ...dishColumns(file.photo) })),
+    { onConflict: 'id', ignoreDuplicates: true },
+  );
+  if (attachError) throw new PhotosNotAttachedError(attachError);
 }
 
 export async function loadPost(id: string): Promise<FeedPost | null> {
   const { data, error } = await supabase.from('posts').select(POST_COLUMNS).eq('id', id).maybeSingle();
   if (error) throw error;
   if (!data) return null;
-  const { data: photo, error: photoError } = await supabase.storage.from('food-photos').createSignedUrl(data.photo_path, 3600);
-  if (photoError) throw photoError;
-  const [dish] = await loadDishes([data]);
-  return { ...data, imageUrl: photo.signedUrl, dish };
+  const [post] = await toFeedPosts([data]);
+  return post;
 }
