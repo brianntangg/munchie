@@ -43,8 +43,11 @@ export async function loadPopularDishes(hallId: string): Promise<MenuItem[]> {
   return data;
 }
 
-// The few popular dishes to offer before anything is typed: the first of `popular` that are still `available`.
-export function starterDishes(popular: MenuItem[], available: MenuItem[], limit = SUGGESTION_COUNT): MenuItem[] {
+// The few dishes to offer before anything is typed, so there is always something to tap: the first of `popular` that
+// are still `available`, or, when none are (a hall nobody has rated yet), the first dishes on its menu. `popular` says
+// which, so the screen only calls a list popular when it is.
+export function starterDishes(popular: MenuItem[], available: MenuItem[], limit = SUGGESTION_COUNT): { shown: MenuItem[]; popular: boolean } {
   const open = new Set(available.map((item) => item.id));
-  return popular.filter((item) => open.has(item.id)).slice(0, limit);
+  const rated = popular.filter((item) => open.has(item.id)).slice(0, limit);
+  return rated.length ? { shown: rated, popular: true } : { shown: available.slice(0, limit), popular: false };
 }

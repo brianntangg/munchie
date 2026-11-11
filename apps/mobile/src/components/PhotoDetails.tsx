@@ -66,7 +66,8 @@ export function PhotoDetails({ photos, activeId, hallName, dishes, popular, dish
   const typed = photo.text.trim();
   // Typing searches the whole menu; before that, the popular dishes are offered so the common case is one tap.
   const searched = suggestDishes(available, photo.text);
-  const shown = typed ? searched.shown : starterDishes(popular, available);
+  const starters = starterDishes(popular, available);
+  const shown = typed ? searched.shown : starters.shown;
   const total = typed ? searched.total : 0;
   return <SafeAreaView style={styles.screen} edges={['top']}><KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === 'ios' ? 'padding' : undefined}><ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content}>
     <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.md }}>
@@ -90,11 +91,11 @@ export function PhotoDetails({ photos, activeId, hallName, dishes, popular, dish
       </View>
       {!locked && <Button title="Change" secondary disabled={busy} onPress={() => onChange(photo.id, { dish: null, text: '', score: null })} />}
     </View> : locked ? <Text style={styles.body}>{typed || 'No label'}</Text> : <View style={{ gap: spacing.md }}>
-      <Field label="What is this?" placeholder={`Search the ${hallName} menu, or type anything`} value={photo.text} maxLength={MAX_DISH_TEXT} autoFocus={!typed}
+      <Field label="Which dish is this?" placeholder={`Search the ${hallName} menu`} value={photo.text} maxLength={MAX_DISH_TEXT} autoFocus={!typed}
         onChangeText={(text) => onChange(photo.id, { text })} editable={!busy} returnKeyType="done" />
       <ErrorText>{dishError}</ErrorText>{!!dishError && <Button title="Reload dishes" secondary onPress={onReloadDishes} />}
       {!!shown.length && <View style={{ borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, backgroundColor: colors.surface, overflow: 'hidden' }}>
-        <Text style={[type.caption, { padding: spacing.md, paddingBottom: spacing.xs }]}>{typed ? `From the ${hallName} menu` : `Popular at ${hallName}`}</Text>
+        <Text style={[type.caption, { padding: spacing.md, paddingBottom: spacing.xs }]}>{typed ? `From the ${hallName} menu` : starters.popular ? `Popular at ${hallName}` : `On the ${hallName} menu`}</Text>
         {shown.map((item) => <Pressable key={item.id} onPress={() => onChange(photo.id, { dish: item, text: '' })} disabled={busy} accessibilityRole="button" accessibilityLabel={`Choose ${item.name}`}
           style={{ paddingHorizontal: spacing.md, paddingVertical: spacing.md, borderTopWidth: 1, borderTopColor: colors.border }}>
           <Text style={[type.body, { fontWeight: '600' }]}>{item.name}</Text>
@@ -102,8 +103,8 @@ export function PhotoDetails({ photos, activeId, hallName, dishes, popular, dish
         </Pressable>)}
         {total > shown.length && <Text style={[type.caption, { padding: spacing.md }]}>{total - shown.length} more {total - shown.length === 1 ? 'dish matches' : 'dishes match'}. Keep typing to narrow it down.</Text>}
       </View>}
-      {!typed && <Text style={styles.body}>{shown.length ? 'Tap a dish to rate it, or type to search the menu or write your own.' : `Type to search the ${hallName} menu, or write your own.`}</Text>}
-      {!!typed && <Text style={styles.body}>{shown.length ? 'Not on the list? ' : 'No menu match. '}We’ll label this photo “{typed}”.</Text>}
+      {!typed && <Text style={styles.body}>{shown.length ? 'Tap a dish to rate it, or start typing.' : `Type to search the ${hallName} menu.`} Not on the menu? Type your own name for it.</Text>}
+      {!!typed && <Text style={styles.body}>{shown.length ? 'Not on the list? ' : `Nothing on the ${hallName} menu matches. Check the spelling, or keep it: `}We’ll label this photo “{typed}”.</Text>}
     </View>}
 
     {photo.dish || (typed && !locked) ? <View style={{ gap: spacing.md }}>

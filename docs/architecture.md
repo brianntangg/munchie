@@ -18,7 +18,7 @@ to `src/` in `tsconfig.json`; restart Metro after changing aliases or entry poin
 | `components/ui.tsx`, `theme.ts` | Shared visual components and design tokens |
 | `components/form-ui.tsx` | Form helpers and styles used by login, profile, post, and feed; wraps the shared Button |
 | `components/Feed.tsx`, `PostCard.tsx` | Paginated feed; a post's photos swipe side by side, showing the dish (and its score) in the photo on screen |
-| `components/PhotoDetails.tsx` | The "What did you eat?" step: a large preview, a strip of all the photos, a field that searches the hall's menu as you type (3 best matches; pick one to rate it, or keep what you typed), 3 popular dishes offered before anything is typed, and the photo summary list on the form |
+| `components/PhotoDetails.tsx` | The "What did you eat?" step: a large preview, a strip of all the photos, a field that searches the hall's menu as you type (3 best matches; pick one to rate it, or keep what you typed), 3 dishes offered before anything is typed (the hall's most-rated, or the first on its menu when none are rated yet), and the photo summary list on the form |
 | `components/StarRating.tsx` | Tap-to-choose 1–5 star input |
 | `components/ProfileGate.tsx` | Loads profile or asks a signed-in user to create one |
 | `lib/auth.tsx` | Session restoration, auth events, foreground token refresh |

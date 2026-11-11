@@ -103,16 +103,30 @@ describe('loadPopularDishes', () => {
 describe('starterDishes', () => {
   const popular = [dish('1', 'A'), dish('2', 'B'), dish('3', 'C'), dish('4', 'D'), dish('5', 'E')];
 
-  it('offers the first three popular dishes, in popularity order', () => {
-    expect(starterDishes(popular, popular).map((item) => item.id)).toEqual(['1', '2', '3']);
+  const ids = (result: { shown: MenuItem[] }) => result.shown.map((item) => item.id);
+
+  it('offers the first three popular dishes, in popularity order, and says they are popular', () => {
+    expect(starterDishes(popular, popular)).toEqual({ shown: popular.slice(0, 3), popular: true });
   });
 
   it('skips dishes that are no longer available, such as ones already chosen for another photo', () => {
-    expect(starterDishes(popular, popular.filter((item) => item.id !== '2')).map((item) => item.id)).toEqual(['1', '3', '4']);
+    expect(ids(starterDishes(popular, popular.filter((item) => item.id !== '2')))).toEqual(['1', '3', '4']);
   });
 
-  it('offers fewer when fewer are left, and none when none are popular', () => {
-    expect(starterDishes(popular, [dish('5', 'E')]).map((item) => item.id)).toEqual(['5']);
-    expect(starterDishes([], popular)).toEqual([]);
+  it('offers fewer popular dishes when fewer are left', () => {
+    expect(starterDishes(popular, [dish('5', 'E'), dish('9', 'Z')])).toEqual({ shown: [dish('5', 'E')], popular: true });
+  });
+
+  it('falls back to the first menu dishes, not called popular, when no dish has been rated', () => {
+    const menu = [dish('7', 'Pizza'), dish('8', 'Salad'), dish('9', 'Soup'), dish('10', 'Tacos')];
+    expect(starterDishes([], menu)).toEqual({ shown: menu.slice(0, 3), popular: false });
+  });
+
+  it('falls back to the menu when every popular dish is already chosen for another photo', () => {
+    expect(starterDishes([dish('1', 'A')], [dish('2', 'B')])).toEqual({ shown: [dish('2', 'B')], popular: false });
+  });
+
+  it('offers nothing when the menu is empty', () => {
+    expect(starterDishes([], [])).toEqual({ shown: [], popular: false });
   });
 });
