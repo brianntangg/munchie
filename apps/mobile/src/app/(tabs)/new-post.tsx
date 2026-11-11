@@ -3,7 +3,7 @@ import { ActivityIndicator, Image, KeyboardAvoidingView, Platform, ScrollView, T
 import { Redirect, router } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView } from '@/components/SafeArea';
 import { randomUUID } from 'expo-crypto';
 import { useAuth } from '@/lib/auth';
 import { message, supabase } from '@/lib/supabase';

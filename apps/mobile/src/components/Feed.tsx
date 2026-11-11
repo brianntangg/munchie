@@ -3,7 +3,7 @@ import { ActivityIndicator, FlatList, Text, View } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { Button, ErrorText, styles } from './form-ui';
 import { PostCard } from './PostCard';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView } from './SafeArea';
 import type { ReactNode } from 'react';
 import { message } from '../lib/supabase';
 import { loadPosts, PAGE_SIZE, type FeedPost } from '../lib/posts';
