@@ -1,5 +1,5 @@
 import { Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView } from './SafeArea';
 import { Button, ErrorText, Field, styles } from './form-ui';
 import { StarRating, Stars } from './StarRating';
 import { starterDishes, suggestDishes, type MenuItem } from '@/lib/menu';
