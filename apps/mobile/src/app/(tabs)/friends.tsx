@@ -1,6 +1,34 @@
-import { Text } from 'react-native';
-import { Card, Screen } from '@/components/ui';
+import { useCallback, useState } from 'react';
+import { ActivityIndicator, Text } from 'react-native';
+import { useFocusEffect } from 'expo-router';
+import { Feed } from '@/components/Feed';
+import { useAuth } from '@/lib/auth';
+import { loadFollowingIds } from '@/lib/follows';
+import { message } from '@/lib/supabase';
+import { Banner, Screen } from '@/components/ui';
 import { type } from '@/theme';
+
 export default function FriendsScreen() {
-  return <Screen><Text style={type.title}>Friends</Text><Card><Text style={type.heading}>Coming soon</Text><Text style={type.body}>Following friends will be available soon. For now, explore everyone’s meals in the Feed tab.</Text></Card></Screen>;
+  const { session } = useAuth();
+  const currentUserId = session?.user.id;
+  const [followingIds, setFollowingIds] = useState<string[]>();
+  const [error, setError] = useState('');
+  const refreshFollowing = useCallback(async () => {
+    if (!currentUserId) return [];
+    const ids = await loadFollowingIds(currentUserId);
+    setFollowingIds((current) => current?.length === ids.length && current.every((id, index) => id === ids[index]) ? current : ids);
+    return ids;
+  }, [currentUserId]);
+
+  useFocusEffect(useCallback(() => {
+    setFollowingIds(undefined);
+    setError('');
+    refreshFollowing().catch((nextError) => setError(message(nextError)));
+  }, [refreshFollowing]));
+
+  if (!session || followingIds === undefined) return error ? <Screen><Banner message={error} /></Screen> : <Screen><ActivityIndicator /></Screen>;
+  return <Feed key={followingIds.join(',')} authorIds={followingIds} refreshFilter={refreshFollowing} title="Following" header={<>
+    <Banner message={error} />
+    {!followingIds.length && <Text style={type.body}>You are not following anyone yet.</Text>}
+  </>} />;
 }

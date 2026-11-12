@@ -55,7 +55,7 @@ Status reflects the `main` branch. Update this table as features land.
 
 | Feature | Description | Status |
 | --- | --- | --- |
-| Friends | Follow other students and see their posts | In progress: follows table and follower/following counts built; follow button and following feed planned |
+| Friends | Follow other students, see their posts, and browse follower/following lists | Built |
 
 ### Trust and safety
 
