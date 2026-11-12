@@ -1,5 +1,5 @@
 import { Text } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView } from '@/components/SafeArea';
 import { SignIn } from '@/components/SignIn';
 import { Banner, Screen } from '@/components/ui';
 import { useAuth } from '@/lib/auth';

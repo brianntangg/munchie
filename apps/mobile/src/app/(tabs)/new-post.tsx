@@ -3,7 +3,7 @@ import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, Text, Vi
 import { Redirect, router } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useHeaderHeight } from '@/components/SafeArea';
 import { randomUUID } from 'expo-crypto';
 import { useAuth } from '@/lib/auth';
 import { message, supabase } from '@/lib/supabase';
@@ -16,6 +16,7 @@ import { PhotoDetails, PhotoSummary, type PhotoDraft } from '@/components/PhotoD
 
 export default function Post() {
   const { session, loading } = useAuth();
+  const headerHeight = useHeaderHeight();
   const [halls, setHalls] = useState<Tables<'dining_halls'>[]>([]);
   const [hallId, setHallId] = useState('');
   const [caption, setCaption] = useState('');
@@ -146,7 +147,7 @@ export default function Post() {
   if (editing && photos.length) return <PhotoDetails photos={photos} activeId={editing} hallName={hallName} dishes={dishes} popular={popular} dishError={dishError} maxPhotos={MAX_PHOTOS} busy={busy} locked={posted} error={error}
     onSelect={setEditing} onChange={changePhoto} onRemove={removePhoto} onAddMore={() => addPhotos(false)} onDone={() => setEditing(null)} onReloadDishes={() => { setDishError(''); setDishAttempt((value) => value + 1); }} />;
   const atLimit = photos.length >= MAX_PHOTOS;
-  return <SafeAreaView style={styles.screen} edges={['top']}><KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === 'ios' ? 'padding' : undefined}><ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content}>
+  return <SafeAreaView style={styles.screen} edges={['top']}><KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={headerHeight}><ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content}>
     <Text style={styles.heading}>Share your plate</Text><Text style={styles.body}>Pick a dining hall, add up to {MAX_PHOTOS} photos, and say what each one is.</Text>
     <Text style={styles.label}>Dining hall</Text><View style={styles.row}>{halls.map((hall) => <Button key={hall.id} title={`${hallId === hall.id ? '✓ ' : ''}${hall.name}`} secondary={hallId !== hall.id} disabled={locked} onPress={() => chooseHall(hall.id)} />)}</View>
     <ErrorText>{hallError}</ErrorText>{!!hallError && <Button title="Reload dining halls" secondary onPress={() => { setHallError(''); setAttempt((value) => value + 1); }} />}

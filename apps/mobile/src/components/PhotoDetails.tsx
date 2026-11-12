@@ -1,5 +1,5 @@
 import { Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useHeaderHeight } from './SafeArea';
 import { Button, ErrorText, Field, styles } from './form-ui';
 import { StarRating, Stars } from './StarRating';
 import { starterDishes, suggestDishes, type MenuItem } from '@/lib/menu';
@@ -58,6 +58,7 @@ type Props = {
 // Full-screen step after choosing photos: shows them all, and asks what each one is. Typing searches the hall's menu;
 // picking a match or keeping what they typed both let the member rate it.
 export function PhotoDetails({ photos, activeId, hallName, dishes, popular, dishError, error, maxPhotos, busy, locked, onSelect, onChange, onRemove, onAddMore, onReloadDishes, onDone }: Props) {
+  const headerHeight = useHeaderHeight();
   const index = Math.max(0, photos.findIndex((photo) => photo.id === activeId));
   const photo = photos[index];
   if (!photo) return null;
@@ -69,7 +70,7 @@ export function PhotoDetails({ photos, activeId, hallName, dishes, popular, dish
   const starters = starterDishes(popular, available);
   const shown = typed ? searched.shown : starters.shown;
   const total = typed ? searched.total : 0;
-  return <SafeAreaView style={styles.screen} edges={['top']}><KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === 'ios' ? 'padding' : undefined}><ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content}>
+  return <SafeAreaView style={styles.screen} edges={['top']}><KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={headerHeight}><ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content}>
     <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.md }}>
       <Text style={styles.heading}>What did you eat?</Text>
       <Text style={type.caption}>{photos.length > 1 ? `Photo ${index + 1} of ${photos.length}` : hallName}</Text>

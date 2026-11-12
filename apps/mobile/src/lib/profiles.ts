@@ -26,6 +26,14 @@ export async function loadProfile(id: string): Promise<Profile | null> {
   };
 }
 
+// Just the member's display name, for the header avatar: one query and no counts, so a failed count cannot hide the name.
+// Null when no member has this id.
+export async function loadDisplayName(id: string): Promise<string | null> {
+  const { data, error } = await supabase.from('profiles').select('display_name').eq('id', id).maybeSingle();
+  if (error) throw error;
+  return data?.display_name ?? null;
+}
+
 export function countLabel(count: number, noun: string) {
   return `${count} ${noun}${count === 1 ? '' : 's'}`;
 }
