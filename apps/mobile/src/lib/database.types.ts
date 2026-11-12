@@ -157,13 +157,13 @@ isOneToOne: false
                   ]
                 },"posts": {
                   Row: {
-                    "author_id": string,"caption": string,"created_at": string,"dining_hall_id": string,"dish_text": string | null,"dish_text_score": number | null,"id": string,"menu_item_id": string | null,"menu_item_score": number | null,"photo_path": string
+                    "author_id": string,"caption": string,"created_at": string,"dining_hall_id": string,"dish_text": string | null,"dish_text_score": number | null,"id": string,"menu_item_id": string | null,"photo_path": string
                   }
                   Insert: {
-                    "author_id"?: string,"caption"?: string,"created_at"?: string,"dining_hall_id": string,"dish_text"?: string | null,"dish_text_score"?: number | null,"id"?: string,"menu_item_id"?: string | null,"menu_item_score"?: number | null,"photo_path": string
+                    "author_id"?: string,"caption"?: string,"created_at"?: string,"dining_hall_id": string,"dish_text"?: string | null,"dish_text_score"?: number | null,"id"?: string,"menu_item_id"?: string | null,"photo_path": string
                   }
                   Update: {
-                    "author_id"?: string,"caption"?: string,"created_at"?: string,"dining_hall_id"?: string,"dish_text"?: string | null,"dish_text_score"?: number | null,"id"?: string,"menu_item_id"?: string | null,"menu_item_score"?: number | null,"photo_path"?: string
+                    "author_id"?: string,"caption"?: string,"created_at"?: string,"dining_hall_id"?: string,"dish_text"?: string | null,"dish_text_score"?: number | null,"id"?: string,"menu_item_id"?: string | null,"photo_path"?: string
                   }
                   Relationships: [
                     {

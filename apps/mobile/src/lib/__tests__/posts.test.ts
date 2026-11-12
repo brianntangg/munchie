@@ -115,13 +115,6 @@ describe('publishPost validation', () => {
     expect(mockUpload).not.toHaveBeenCalled();
   });
 
-  it('rejects a menu-dish score on a photo without a menu dish, or outside 1-5, before doing anything', async () => {
-    await expect(publishPost({ ...post, photos: [{ ...cover, menuItemScore: 4 }] })).rejects.toThrow('Only a labeled photo can be rated.');
-    await expect(publishPost({ ...post, photos: [{ ...cover, menuItemId: 'dish-1', menuItemScore: 6 }] })).rejects.toThrow('Choose a score from 1 to 5.');
-    expect(mockMaybeSingle).not.toHaveBeenCalled();
-    expect(mockUpload).not.toHaveBeenCalled();
-  });
-
   it('accepts free text of exactly the maximum length', async () => {
     await expect(publishPost({ ...post, photos: [{ ...cover, dishText: 'x'.repeat(MAX_DISH_TEXT) }] })).resolves.toBeUndefined();
   });
@@ -157,16 +150,6 @@ describe('publishPost success', () => {
     expect(mockUpsert).toHaveBeenCalledWith([
       { id: 'photo-1', post_id: 'post-1', dining_hall_id: 'hall-1', slot: 1, photo_path: 'user-1/photo-1.jpg', dish_text: 'Mystery taco', dish_text_score: 2 },
       { id: 'photo-2', post_id: 'post-1', dining_hall_id: 'hall-1', slot: 2, photo_path: 'user-1/photo-2.jpg', dish_text: 'Plain toast' },
-    ], { onConflict: 'id', ignoreDuplicates: true });
-  });
-
-  // Review of #56: each post keeps the score its author gave, so rating the dish again later cannot change it.
-  it('saves the score of menu-dish photos with the photo, on the cover and on extra photos', async () => {
-    await publishPost({ ...post, photos: [{ ...cover, menuItemId: 'dish-1', menuItemScore: 5 }, extra(1, 'dish-2'), { ...extra(2, 'dish-3'), menuItemScore: 1 }] });
-    expect(mockInsert).toHaveBeenCalledWith({ id: 'post-1', author_id: 'user-1', dining_hall_id: 'hall-1', menu_item_id: 'dish-1', menu_item_score: 5, caption: 'Great pasta', photo_path: path });
-    expect(mockUpsert).toHaveBeenCalledWith([
-      { id: 'photo-1', post_id: 'post-1', dining_hall_id: 'hall-1', slot: 1, photo_path: 'user-1/photo-1.jpg', menu_item_id: 'dish-2' },
-      { id: 'photo-2', post_id: 'post-1', dining_hall_id: 'hall-1', slot: 2, photo_path: 'user-1/photo-2.jpg', menu_item_id: 'dish-3', menu_item_score: 1 },
     ], { onConflict: 'id', ignoreDuplicates: true });
   });
 
@@ -268,7 +251,11 @@ describe('publishPost failures', () => {
   it("fails and cleans up when the post id turns out to be someone else's", async () => {
     const insertError = { code: '23505', message: 'duplicate key' };
     mockInsert.mockResolvedValue({ error: insertError });
-    // The lookup is limited to the member's own posts, so another author's post with this id is not found.
+    // Like the database: another author's post with this id exists, and is found only by a lookup that does not
+    // filter by author. So this fails if publishPost stops limiting the lookup to the member's own posts.
+    mockMaybeSingle
+      .mockResolvedValueOnce({ data: null, error: null })
+      .mockImplementationOnce(async () => ({ data: queryCalls('eq').some(([column, value]) => column === 'author_id' && value === 'user-1') ? null : { id: 'post-1' }, error: null }));
     await expect(publishPost(post)).rejects.toBe(insertError);
     expect(mockRemove).toHaveBeenCalledWith([path]);
   });

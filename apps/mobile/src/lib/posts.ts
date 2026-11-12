@@ -3,8 +3,9 @@ import { supabase } from './supabase';
 import type { Tables } from './database.types';
 import { isValidScore } from './ratings';
 
-// `dish` is what the photo shows: a menu item or free text the author typed, with the score they gave it when posting
-// (null if they did not). The score is fixed with the post, so rating the dish again later does not change older posts.
+// `dish` is what the photo shows: a menu item or free text the author typed, with its score (null if there is none).
+// A menu dish's score is copied by the database from the author's rating once it is saved, and then stays fixed, so rating
+// the dish again later does not change older posts. A typed label's score is saved with the photo.
 export type FeedPhoto = { id: string; imageUrl: string | null; dish: { name: string; score: number | null } | null };
 // `photos` are in display order; the first is the cover.
 export type FeedPost = Tables<'posts'> & { profiles: { display_name: string }; dining_halls: { name: string }; photos: FeedPhoto[] };
@@ -52,16 +53,15 @@ export async function loadPosts(cursor?: { created_at: string; id: string }, fil
 
 // The first photo is the post's cover and is stored under the post's id; its own `id` is not used.
 // Every other photo needs a stable `id` so a retry never uploads or attaches it twice.
-// A photo names a menu dish (`menuItemId`) or free text (`dishText`), not both, with an optional score for it
-// (`menuItemScore` or `dishTextScore`) that is saved with the photo. A menu dish's score is also saved as the member's
-// rating (see post-with-rating), which feeds the dish's average; free text has no menu item, so it never counts there.
-export type PostPhotoInput = { id: string; base64: string; menuItemId?: string; menuItemScore?: number; dishText?: string; dishTextScore?: number };
+// A photo names a menu dish (`menuItemId`) or free text (`dishText`), not both. A menu dish is rated separately
+// (see post-with-rating), and the database copies that saved rating onto the photo; free text has no menu item, so its
+// optional score (`dishTextScore`) is saved with the photo and never counts toward a dish's average.
+export type PostPhotoInput = { id: string; base64: string; menuItemId?: string; dishText?: string; dishTextScore?: number };
 export const MAX_DISH_TEXT = 100;
 
 // Only the dish columns a photo actually uses are sent, so an unlabeled photo stays null in both.
-const dishColumns = ({ menuItemId, menuItemScore, dishText, dishTextScore }: PostPhotoInput) => ({
+const dishColumns = ({ menuItemId, dishText, dishTextScore }: PostPhotoInput) => ({
   ...(menuItemId ? { menu_item_id: menuItemId } : {}),
-  ...(menuItemId && menuItemScore !== undefined ? { menu_item_score: menuItemScore } : {}),
   ...(dishText ? { dish_text: dishText.trim() } : {}),
   ...(dishText && dishTextScore !== undefined ? { dish_text_score: dishTextScore } : {}),
 });
@@ -84,8 +84,7 @@ export async function publishPost({ id, userId, hallId, caption, photos }: { id:
   if (photos.some((photo) => photo.menuItemId && photo.dishText)) throw new Error('Name a menu dish or type your own, not both.');
   if (photos.some((photo) => photo.dishText !== undefined && !(photo.dishText.trim().length >= 1 && photo.dishText.trim().length <= MAX_DISH_TEXT))) throw new Error(`Describe each photo in 1 to ${MAX_DISH_TEXT} characters.`);
   if (photos.some((photo) => photo.dishTextScore !== undefined && photo.dishText === undefined)) throw new Error('Only a labeled photo can be rated.');
-  if (photos.some((photo) => photo.menuItemScore !== undefined && photo.menuItemId === undefined)) throw new Error('Only a labeled photo can be rated.');
-  if (photos.some((photo) => [photo.dishTextScore, photo.menuItemScore].some((score) => score !== undefined && !isValidScore(score)))) throw new Error('Choose a score from 1 to 5.');
+  if (photos.some((photo) => photo.dishTextScore !== undefined && !isValidScore(photo.dishTextScore))) throw new Error('Choose a score from 1 to 5.');
   const { data: existing, error: checkError } = await supabase.from('posts').select('id, author_id').eq('id', id).maybeSingle();
   if (checkError) throw checkError;
   if (existing && existing.author_id !== userId) throw new Error('This post belongs to another member.');
