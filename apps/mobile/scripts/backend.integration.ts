@@ -635,6 +635,35 @@ describe('Likes and comments', () => {
     expect((await bob.api.from('comments').select('id').eq('id', data!.id)).data).toHaveLength(0);
   });
 
+  // The next three run the exact queries src/lib/comments.ts and src/lib/likes.ts send.
+  test("adding a comment returns it with its author's name", async () => {
+    const { data, error } = await alice.api.from('comments').insert({ post_id: post, body: 'Saved and returned' })
+      .select('id, post_id, author_id, body, created_at, profiles(display_name)').single();
+    expect(error).toBeNull();
+    expect(data).toMatchObject({ post_id: post, author_id: alice.id, body: 'Saved and returned', profiles: { display_name: longName } });
+  });
+
+  test("deleting someone else's comment, even naming yourself, deletes nothing", async () => {
+    const { data: comment, error } = await alice.api.from('comments').insert({ post_id: post, body: 'Not yours' }).select('id').single();
+    expect(error).toBeNull();
+    const deleted = await bob.api.from('comments').delete().eq('id', comment!.id).eq('author_id', bob.id).select('id');
+    expect(deleted.error).toBeNull();
+    expect(deleted.data).toEqual([]);
+    expect((await alice.api.from('comments').select('id').eq('id', comment!.id)).data).toHaveLength(1);
+  });
+
+  test('unliking removes only your own like', async () => {
+    for (const member of [alice, bob]) {
+      const { error } = await member.api.from('likes').insert({ post_id: post });
+      expect([undefined, '23505']).toContain(error?.code);
+    }
+    expect((await bob.api.from('likes').delete().eq('post_id', post).eq('author_id', bob.id)).error).toBeNull();
+    const { data, error } = await alice.api.from('likes').select('author_id').eq('post_id', post);
+    expect(error).toBeNull();
+    expect(data?.map((like) => like.author_id)).toEqual([alice.id]);
+    expect((await alice.api.from('likes').delete().eq('post_id', post).eq('author_id', alice.id)).error).toBeNull();
+  });
+
   test('denies anonymous like and comment reads', async () => {
     expect((await anonymous.from('likes').select('post_id')).error).not.toBeNull();
     expect((await anonymous.from('comments').select('id')).error).not.toBeNull();
