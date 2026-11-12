@@ -32,6 +32,8 @@ to `src/` in `tsconfig.json`; restart Metro after changing aliases or entry poin
 | `lib/ratings.ts` | Score validation (whole numbers 1–5), submit or replace a dish rating, the current user's score, dish averages |
 | `lib/profiles.ts` | A student's display name with post, follower, and following counts (count-only queries), and count labels |
 | `lib/follows.ts` | Follow mutations, following IDs, and follower/following profile queries |
+| `lib/likes.ts` | Like and unlike a post (liking twice is harmless), and like counts plus whether the current user liked each post for a page of posts in one request |
+| `lib/comments.ts` | Comment validation (1–280 trimmed characters), a post's comments oldest first with author names, add a comment, delete your own comment |
 | `lib/database.types.ts` | Generated database types; regenerate after schema changes |
 
 ## Authentication and data flow
