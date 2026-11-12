@@ -27,8 +27,8 @@ export function FriendsButton() {
 }
 
 // Friends and Account are opened from the header, so they get a way back instead of the friends button.
-export function BackButton() {
-  return <HeaderButton label="Back" onPress={() => (router.canGoBack() ? router.back() : router.navigate('/'))}><Feather name="chevron-left" size={26} color={colors.text} /></HeaderButton>;
+export function BackButton({ onPress }: { onPress: () => void }) {
+  return <HeaderButton label="Back" onPress={onPress}><Feather name="chevron-left" size={26} color={colors.text} /></HeaderButton>;
 }
 
 // The member's initials. The tabs layout loads the name once for every tab's header; "Student" until it arrives or if it
