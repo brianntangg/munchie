@@ -11,9 +11,10 @@ export function HeaderTitle() {
   return <Text accessibilityRole="header" style={{ fontSize: 22, fontWeight: '800', letterSpacing: 0.5, color: colors.text }}>Munchie</Text>;
 }
 
-// White with a hairline underneath, matching the tab bar, so the corner buttons stand out from the page.
-export function HeaderBackground() {
-  return <View style={{ flex: 1, backgroundColor: colors.surface, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border }} />;
+// White with a hairline underneath, matching the tab bar, so the corner buttons stand out from the page. It fills the
+// whole header, so its height is the header's height, reported for the screens' keyboard offset.
+export function HeaderBackground({ onHeight }: { onHeight?: (height: number) => void }) {
+  return <View onLayout={(event) => onHeight?.(event.nativeEvent.layout.height)} style={{ flex: 1, backgroundColor: colors.surface, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border }} />;
 }
 
 // A 44pt tap target, so the corner buttons are easy to hit.

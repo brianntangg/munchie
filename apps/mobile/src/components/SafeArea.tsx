@@ -7,6 +7,12 @@ const ALL_EDGES: Edge[] = ['top', 'right', 'bottom', 'left'];
 // React Navigation's HeaderShownContext, which expo-router marks deprecated and plans to remove.
 export const UnderHeaderContext = createContext(false);
 
+// The Munchie header's full height (status bar included) as measured by the tabs layout; 0 where there is no header.
+// A KeyboardAvoidingView under the header needs it as keyboardVerticalOffset, because it measures itself from the top of
+// its own screen, not the window.
+export const HeaderHeightContext = createContext(0);
+export const useHeaderHeight = () => useContext(HeaderHeightContext);
+
 // The safe-area view every screen uses. Under the Munchie header the header already clears the notch, so the top inset is
 // dropped; otherwise it behaves exactly like the library's SafeAreaView.
 export function SafeAreaView({ edges, ...props }: SafeAreaViewProps) {

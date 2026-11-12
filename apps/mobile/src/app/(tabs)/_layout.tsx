@@ -1,8 +1,9 @@
 import { AccountButton, BackButton, FriendsButton, HeaderBackground, HeaderTitle } from '@/components/AppHeader';
 import { ProfileGate } from '@/components/ProfileGate';
-import { UnderHeaderContext } from '@/components/SafeArea';
+import { HeaderHeightContext, UnderHeaderContext } from '@/components/SafeArea';
 import { useAuth } from '@/lib/auth';
 import { Tabs } from 'expo-router';
+import { useState } from 'react';
 import type { ColorValue } from 'react-native';
 import Feather from '@expo/vector-icons/Feather';
 
@@ -16,10 +17,11 @@ const icon = (name: 'home' | 'coffee' | 'camera') =>
 
 export default function TabsLayout() {
   const { session } = useAuth();
+  const [headerHeight, setHeaderHeight] = useState(0);
   if (!session) return null;
   return (
     // Every tab screen sits under the Munchie header, so their safe-area views skip the top inset.
-    <ProfileGate key={session.user.id} userId={session.user.id}><UnderHeaderContext.Provider value><Tabs
+    <ProfileGate key={session.user.id} userId={session.user.id}><UnderHeaderContext.Provider value><HeaderHeightContext.Provider value={headerHeight}><Tabs
       // Friends and Account are opened from the header, so Back returns to whichever tab opened them.
       backBehavior="history"
       screenOptions={{
@@ -28,7 +30,7 @@ export default function TabsLayout() {
         headerTitle: () => <HeaderTitle />,
         headerLeft: () => <FriendsButton />,
         headerRight: () => <AccountButton userId={session.user.id} />,
-        headerBackground: () => <HeaderBackground />,
+        headerBackground: () => <HeaderBackground onHeight={setHeaderHeight} />,
         headerShadowVisible: false,
         tabBarActiveTintColor: colors.text,
         tabBarInactiveTintColor: colors.textMuted,
@@ -41,6 +43,6 @@ export default function TabsLayout() {
       {/* Opened from the header's corners rather than the tab bar. */}
       <Tabs.Screen name="friends" options={{ title: 'Friends', href: null, headerLeft: () => <BackButton /> }} />
       <Tabs.Screen name="account" options={{ title: 'Account', href: null, headerLeft: () => <BackButton /> }} />
-    </Tabs></UnderHeaderContext.Provider></ProfileGate>
+    </Tabs></HeaderHeightContext.Provider></UnderHeaderContext.Provider></ProfileGate>
   );
 }
