@@ -20,9 +20,14 @@ export function Feed({ hallId, authorId, authorIds, refreshFilter, title = 'Feed
   const viewerId = useAuth().session?.user.id ?? null;
   const request = useRef(0);
   // Like counts load after the posts, so a slow or failed request never holds up the feed; a card without counts
-  // just leaves out the like button.
-  const fetchLikes = useCallback((page: FeedPost[]) => {
-    loadLikes(page.map((post) => post.id), viewerId).then((next) => setLikes((current) => ({ ...current, ...next }))).catch(() => {});
+  // just leaves out the like button. A refresh starts a new generation, so counts from an older refresh that arrive
+  // late are dropped instead of replacing newer ones.
+  const likesGeneration = useRef(0);
+  const fetchLikes = useCallback((page: FeedPost[], fresh: boolean) => {
+    const generation = fresh ? ++likesGeneration.current : likesGeneration.current;
+    loadLikes(page.map((post) => post.id), viewerId)
+      .then((next) => { if (generation === likesGeneration.current) setLikes((current) => (fresh ? next : { ...current, ...next })); })
+      .catch(() => {});
   }, [viewerId]);
   const pending = useRef(false);
   const refresh = useCallback(async () => {
@@ -31,7 +36,7 @@ export function Feed({ hallId, authorId, authorIds, refreshFilter, title = 'Feed
     try {
       const refreshedAuthorIds = await refreshFilter?.();
       const next = await loadPosts(undefined, { hallId, authorId, authorIds: refreshedAuthorIds ?? authorIds });
-      if (version === request.current) { setPosts(next); setHasMore(next.length === PAGE_SIZE); fetchLikes(next); }
+      if (version === request.current) { setPosts(next); setHasMore(next.length === PAGE_SIZE); fetchLikes(next, true); }
     } catch (error) { if (version === request.current) setError(message(error)); }
     finally { if (version === request.current) { pending.current = false; setRefreshing(false); } }
   }, [hallId, authorId, authorIds, refreshFilter, fetchLikes]);
@@ -45,7 +50,7 @@ export function Feed({ hallId, authorId, authorIds, refreshFilter, title = 'Feed
     pending.current = true; setLoadingMore(true); setError('');
     try {
       const next = await loadPosts(posts[posts.length - 1], { hallId, authorId, authorIds });
-      if (version === request.current) { setPosts((current) => [...current, ...next]); setHasMore(next.length === PAGE_SIZE); fetchLikes(next); }
+      if (version === request.current) { setPosts((current) => [...current, ...next]); setHasMore(next.length === PAGE_SIZE); fetchLikes(next, false); }
     } catch (error) { if (version === request.current) setError(message(error)); }
     finally { if (version === request.current) { pending.current = false; setLoadingMore(false); } }
   }

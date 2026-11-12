@@ -1,10 +1,14 @@
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { likePost, unlikePost, type LikeSummary } from '@/lib/likes';
+import { likePost, toggledLike, unlikePost, type LikeSummary } from '@/lib/likes';
 import { countLabel } from '@/lib/profiles';
 import { message } from '@/lib/supabase';
 import { colors, spacing, type } from '@/theme';
+
+// Posts whose like or unlike is still saving. Kept outside the component, because refreshed counts remount the button
+// (see below) and would otherwise let a quick second tap send a second request.
+const saving = new Set<string>();
 
 // Heart toggle with the like count. Updates right away and puts the old state back if the request fails.
 // Callers key it by the loaded count and state, so refreshed counts replace the local state.
@@ -13,16 +17,16 @@ export function LikeButton({ postId, initial }: { postId: string; initial: LikeS
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   async function toggle() {
-    if (busy) return;
+    if (busy || saving.has(postId)) return;
     const previous = state;
-    setState({ count: previous.count + (previous.likedByMe ? -1 : 1), likedByMe: !previous.likedByMe });
-    setBusy(true); setError('');
+    setState(toggledLike(previous));
+    saving.add(postId); setBusy(true); setError('');
     try {
       await (previous.likedByMe ? unlikePost(postId) : likePost(postId));
     } catch (error) {
       setState(previous); setError(message(error));
     } finally {
-      setBusy(false);
+      saving.delete(postId); setBusy(false);
     }
   }
   return <View style={styles.wrap}>

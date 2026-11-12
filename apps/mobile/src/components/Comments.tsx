@@ -1,12 +1,25 @@
 import { useCallback, useState } from 'react';
 import { useFocusEffect } from 'expo-router';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Avatar, Banner, Button, Card, LoadingSpinner } from './ui';
 import { useAuth } from '@/lib/auth';
 import { addComment, deleteComment, isValidComment, loadComments, MAX_COMMENT_LENGTH, type Comment } from '@/lib/comments';
 import { countLabel } from '@/lib/profiles';
 import { message } from '@/lib/supabase';
 import { colors, radius, spacing, type } from '@/theme';
+
+// Asks before deleting, since a deleted comment can't be brought back. React Native's Alert has no buttons in the
+// browser, so the web build uses the browser's own confirm dialog.
+function confirmDelete(onConfirm: () => void) {
+  if (Platform.OS === 'web') {
+    if (globalThis.confirm('Delete this comment?')) onConfirm();
+    return;
+  }
+  Alert.alert('Delete this comment?', 'This can\'t be undone.', [
+    { text: 'Cancel', style: 'cancel' },
+    { text: 'Delete', style: 'destructive', onPress: onConfirm },
+  ]);
+}
 
 // A post's comments, oldest first, with a box to add one. Members see Delete only on their own comments.
 export function Comments({ postId }: { postId: string }) {
@@ -53,7 +66,8 @@ export function Comments({ postId }: { postId: string }) {
       setDeleting(null);
     }
   }
-  const length = draft.trim().length;
+  // Counted the way the database counts (an emoji is one character), same as isValidComment.
+  const length = [...draft.trim()].length;
   return <Card style={{ gap: spacing.md }}>
     <Text style={type.heading}>{loading || loadError ? 'Comments' : countLabel(comments.length, 'comment')}</Text>
     <Banner message={loadError || error} />
@@ -66,13 +80,13 @@ export function Comments({ postId }: { postId: string }) {
           <Text style={type.caption}><Text style={styles.author}>{comment.authorName}</Text> · {new Date(comment.createdAt).toLocaleString()}</Text>
           <Text style={type.body}>{comment.body}</Text>
         </View>
-        {comment.authorId === me && <Pressable onPress={() => remove(comment.id)} disabled={deleting === comment.id} hitSlop={8}
+        {comment.authorId === me && <Pressable onPress={() => confirmDelete(() => remove(comment.id))} disabled={deleting === comment.id} hitSlop={8}
           accessibilityRole="button" accessibilityLabel="Delete your comment">
           <Text style={[styles.delete, deleting === comment.id && { opacity: 0.5 }]}>{deleting === comment.id ? 'Deleting…' : 'Delete'}</Text>
         </Pressable>}
       </View>)}
     <TextInput value={draft} onChangeText={setDraft} placeholder="Add a comment" placeholderTextColor={colors.textMuted}
-      multiline maxLength={MAX_COMMENT_LENGTH} accessibilityLabel="Add a comment" style={styles.input} />
+      multiline accessibilityLabel="Add a comment" style={styles.input} />
     <View style={styles.footer}>
       <Text style={[type.caption, length > MAX_COMMENT_LENGTH && { color: colors.danger }]}>{length}/{MAX_COMMENT_LENGTH}</Text>
       <Button label="Post comment" onPress={send} loading={sending} disabled={!isValidComment(draft)} style={{ minHeight: 40 }} />

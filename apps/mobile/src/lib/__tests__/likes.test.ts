@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
-import { likePost, loadLikes, unlikePost } from '../likes';
+import { likePost, loadLikes, toggledLike, unlikePost } from '../likes';
 
 // Replace the Supabase client with a chainable fake. Each query records its method calls; awaiting it resolves to
 // mockRespond(query), so a test can answer each request by what it asked for.
@@ -153,5 +153,19 @@ describe('loadLikes', () => {
   it("surfaces errors looking up the viewer's likes", async () => {
     mockRespond.mockImplementation(async (query) => (isCount(query) ? { count: 1, error: null } : { data: null, error: failed }));
     await expect(loadLikes(['post-1'], 'me')).rejects.toBe(failed);
+  });
+});
+
+describe('toggledLike', () => {
+  it('adds a like and fills the heart', () => {
+    expect(toggledLike({ count: 2, likedByMe: false })).toEqual({ count: 3, likedByMe: true });
+  });
+
+  it('removes a like and empties the heart', () => {
+    expect(toggledLike({ count: 3, likedByMe: true })).toEqual({ count: 2, likedByMe: false });
+  });
+
+  it('never shows a negative count', () => {
+    expect(toggledLike({ count: 0, likedByMe: true })).toEqual({ count: 0, likedByMe: false });
   });
 });
