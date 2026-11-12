@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
-import { countLabel, loadDisplayName, loadProfile } from '../profiles';
+import { countLabel, loadProfile } from '../profiles';
 
 // Each table gets a chainable fake query. The profile lookup ends in maybeSingle();
 // count queries are awaited directly and resolve to mockCount(table, column).
@@ -72,25 +72,6 @@ describe('loadProfile', () => {
     const error = new Error('count failed');
     mockCount.mockImplementation((t, c) => (t === table && c === column ? Promise.resolve({ count: null, error }) : countResult(t, c)));
     await expect(loadProfile('user-2')).rejects.toBe(error);
-  });
-});
-
-describe('loadDisplayName', () => {
-  it("returns the member's display name from one profile query, with no count queries", async () => {
-    await expect(loadDisplayName('user-2')).resolves.toBe('Casey');
-    expect(mockCalls.mock.calls).toEqual([['profiles', 'select', 'display_name'], ['profiles', 'eq', 'id', 'user-2']]);
-    expect(mockCount).not.toHaveBeenCalled();
-  });
-
-  it('returns null when no member has the id', async () => {
-    mockProfile.mockResolvedValue({ data: null, error: null });
-    await expect(loadDisplayName('nobody')).resolves.toBeNull();
-  });
-
-  it('throws when the query fails', async () => {
-    const failure = { message: 'offline' };
-    mockProfile.mockResolvedValue({ data: null, error: failure });
-    await expect(loadDisplayName('user-2')).rejects.toBe(failure);
   });
 });
 

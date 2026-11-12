@@ -28,16 +28,17 @@ function NamePreview({ name }: { name: string }) {
   </View>;
 }
 
-export function ProfileSetup({ userId, onSaved }: { userId: string; onSaved: () => void }) {
+export function ProfileSetup({ userId, onSaved }: { userId: string; onSaved: (name: string) => void }) {
   const [name, setName] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   async function save() {
     setBusy(true); setError('');
     try {
-      const { error } = await supabase.from('profiles').upsert({ id: userId, display_name: name.trim() });
+      const saved = name.trim();
+      const { error } = await supabase.from('profiles').upsert({ id: userId, display_name: saved });
       if (error) throw error;
-      onSaved();
+      onSaved(saved);
     } catch (error) { setError(message(error)); } finally { setBusy(false); }
   }
   return <KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
