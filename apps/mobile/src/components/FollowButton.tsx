@@ -7,7 +7,7 @@ import { message } from '@/lib/supabase';
 export function FollowButton({ userId, onChanged }: { userId: string; onChanged?: () => void }) {
   const { session } = useAuth();
   const currentUserId = session?.user.id;
-  const [following, setFollowing] = useState(false);
+  const [following, setFollowing] = useState<boolean>();
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -18,7 +18,12 @@ export function FollowButton({ userId, onChanged }: { userId: string; onChanged?
     let active = true;
     isFollowing(currentUserId, userId)
       .then((next) => { if (active) setFollowing(next); })
-      .catch((nextError) => { if (active) setError(message(nextError)); })
+      .catch((nextError) => {
+        if (active) {
+          setFollowing(undefined);
+          setError(message(nextError));
+        }
+      })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [currentUserId, userId]);
@@ -47,9 +52,10 @@ export function FollowButton({ userId, onChanged }: { userId: string; onChanged?
   return (
     <>
       <Button
-        label={following ? 'Following' : 'Follow'}
+        label={following === true ? 'Following' : 'Follow'}
         variant={following ? 'secondary' : 'primary'}
         loading={loading || busy}
+        disabled={following === undefined}
         onPress={toggleFollow}
       />
       <Banner message={error} />

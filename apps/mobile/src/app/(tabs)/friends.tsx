@@ -10,14 +10,15 @@ import { type } from '@/theme';
 
 export default function FriendsScreen() {
   const { session } = useAuth();
+  const currentUserId = session?.user.id;
   const [followingIds, setFollowingIds] = useState<string[]>();
   const [error, setError] = useState('');
   const refreshFollowing = useCallback(async () => {
-    if (!session) return [];
-    const ids = await loadFollowingIds(session.user.id);
+    if (!currentUserId) return [];
+    const ids = await loadFollowingIds(currentUserId);
     setFollowingIds((current) => current?.length === ids.length && current.every((id, index) => id === ids[index]) ? current : ids);
     return ids;
-  }, [session]);
+  }, [currentUserId]);
 
   useFocusEffect(useCallback(() => {
     setFollowingIds(undefined);
