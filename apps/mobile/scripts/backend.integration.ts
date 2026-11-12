@@ -639,6 +639,26 @@ describe('Likes and comments', () => {
   });
 });
 
+// Security finding: comment flooding. Before the limit, one member could save 100 comments in about a second.
+describe('Comment flooding', () => {
+  test('one member cannot post more than 10 comments a minute', async () => {
+    const flooder = await signIn('flooder');
+    const { data: post, error: postError } = await flooder.api.from('posts').select('id').limit(1).single();
+    expect(postError).toBeNull();
+    let saved = 0;
+    const refused = new Set<string>();
+    for (let i = 0; i < 100; i++) {
+      const { error, status } = await flooder.api.from('comments').insert({ post_id: post!.id, body: `flood ${i}` });
+      if (!error) saved += 1;
+      else refused.add(`${status} ${error.message}`);
+    }
+    expect(saved).toBe(10);
+    expect([...refused]).toEqual(['429 You are commenting too fast. Wait a minute, then try again.']);
+    const { count } = await flooder.api.from('comments').select('*', { count: 'exact', head: true }).eq('author_id', flooder.id);
+    expect(count).toBe(10);
+  });
+});
+
 describe('Sign-out', () => {
   test('signing out removes access', async () => {
     expect((await alice.api.auth.signOut({ scope: 'local' })).error).toBeNull();

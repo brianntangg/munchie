@@ -97,6 +97,7 @@ Boundaries used below: **B1** GitHub Pages -> Browser, **B2** Browser -> Supabas
 | F4 | No upload rate limit or cleanup of photos never attached to a post | Justin |
 | F5 | No way to report or remove inappropriate posts | David |
 | F6 | No alerting on unusual sign-in or error volume | Tevin |
+| F7 | Comment flooding: nothing limited comment writes, so one member saved 100 comments in 1.1 s against local Supabase (STRIDE D, OWASP Insecure Design). Fixed: at most 10 comments per member per minute, enforced by a database trigger; regression tests in `comment_rate_limit.test.sql` and `backend.integration.ts` | Justin |
 
 ## 5. Top 3 risks and next actions
 1. **F1 Sign-in abuse (T1, T2).** Turn on Supabase CAPTCHA (hCaptcha or Turnstile) for sign-in, shorten code expiry to 10 minutes, review hosted rate limits, and record the hosted auth settings in `docs/email-delivery.md`. Owner: Tevin.

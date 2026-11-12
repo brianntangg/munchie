@@ -63,7 +63,7 @@ protection is a UI convenience, not a substitute for database permissions.
 | `ratings` | Author, menu item, score (whole number 1–5), server timestamps; one rating per member per dish; members read all ratings and create or change only their own score; no deletes |
 | `follows` | Follower (from the session) and followee, server timestamp; one-way; no self-follows or duplicates; members read all follows and create or delete only their own |
 | `likes` | Post and liker (from the session), server timestamp; one like per member per post; members read all likes and add or remove only their own |
-| `comments` | Post, author (from the session), text (at most 280 characters, not blank or whitespace-only), server timestamp; members read all comments, add their own, and delete only their own; no edits |
+| `comments` | Post, author (from the session), text (at most 280 characters, not blank or whitespace-only), server timestamp; members read all comments, add their own (at most 10 per minute, refused with HTTP 429 after that), and delete only their own; no edits |
 | `food-photos` bucket | Private JPEGs up to 5 MB; members read; uploads must be in the current user's folder |
 
 Posts require an existing uploaded photo at `user-id/post-id.jpg`. Clients cannot
