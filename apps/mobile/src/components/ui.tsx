@@ -22,10 +22,12 @@ export function Screen({
   scroll?: boolean;
   edges?: Edge[];
 }) {
+  // automaticallyAdjustKeyboardInsets: on iOS, a focused text box near the bottom (like the comment box on a post)
+  // scrolls above the keyboard instead of being covered by it.
   return (
     <SafeAreaView style={styles.screen} edges={edges}>
       {scroll ? (
-        <ScrollView contentContainerStyle={styles.screenContent} keyboardShouldPersistTaps="handled">
+        <ScrollView contentContainerStyle={styles.screenContent} keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets>
           {children}
         </ScrollView>
       ) : (
