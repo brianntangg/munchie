@@ -397,7 +397,11 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.ref_name }}
+          # The commit message is written by whoever made the commit, so like the tag it goes through the environment,
+          # never pasted into the script, where shell syntax in it could run commands (Semgrep run-shell-injection).
+          MESSAGE: ${{ github.event.head_commit.message }}
         run: |
           (cd dist && zip -qr "../munchie-web-$TAG.zip" .)
-          # Name the release after the tagged commit, e.g. "Munchie v1.4: Add likes and comments".
-          gh release create "$TAG" "munchie-web-$TAG.zip" --title "Munchie $TAG: ${{ github.event.head_commit.message }}" --generate-notes
+          # Name the release after the tagged commit's first line, e.g. "Munchie v1.4: Add likes and comments".
+          SUMMARY="$(printf '%s\n' "$MESSAGE" | head -n 1)"
+          gh release create "$TAG" "munchie-web-$TAG.zip" --title "Munchie $TAG: $SUMMARY" --generate-notes
