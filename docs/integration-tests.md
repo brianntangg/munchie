@@ -122,6 +122,9 @@ failure-path test (invalid input, constraint violation, or unauthorized).
 | comments come back oldest first with each author's name | S2, S4 | Comments read back in the order written, joined to the author's display name |
 | ✗ rejects blank, whitespace-only, and 281-character comments | S4 | Spaces only, newlines and tabs only, 281 characters, and a short comment padded past 280 are all rejected |
 | ✗ a member can delete their own comment but not someone else's | S4 | Another member's delete leaves the comment; the author's delete removes it |
+| adding a comment returns it with its author's name | S2, S4 | The insert-and-return query `addComment` sends gives back the comment with the author's display name |
+| ✗ deleting someone else's comment, even naming yourself, deletes nothing | S4 | `deleteComment`'s query returns no rows and the other member's comment stays |
+| ✗ unliking removes only your own like | S4 | `unlikePost`'s query removes bob's like and leaves alice's |
 | ✗ denies anonymous like and comment reads | S2, S4 | Signed-out reads of both tables fail |
 | **Sign-out** | | |
 | ✗ signing out removes access | S1, S2 | After sign-out, reading posts fails |
