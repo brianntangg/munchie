@@ -8,5 +8,6 @@ import { colors, type } from '@/theme';
 export default function SignInScreen() {
   const { error } = useAuth();
   if (!isConfigured) return <Screen><Text style={type.title}>Welcome to Munchie</Text><Text style={type.body}>Follow docs/local-development.md to configure local Supabase, then restart Expo.</Text></Screen>;
-  return <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }}><Banner message={error} /><SignIn /></SafeAreaView>;
+  // SignIn pads its own top, so its white header and meal cards can reach up under the status bar.
+  return <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={['left', 'right', 'bottom']}><SignIn notice={<Banner message={error} />} /></SafeAreaView>;
 }
