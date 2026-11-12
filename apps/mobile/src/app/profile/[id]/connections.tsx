@@ -30,8 +30,9 @@ export default function ConnectionsScreen() {
       contentContainerStyle={{ gap: spacing.sm, paddingBottom: spacing.xl }}
       ListHeaderComponent={<View style={{ gap: spacing.md, marginBottom: spacing.sm }}>
         <Text style={type.title}>{kind === 'followers' ? 'Followers' : 'Following'}</Text>
-        <Text style={type.caption}>{connections.length} {kind === 'followers' ? 'people follow this account' : 'accounts followed'}</Text>
-        <Banner message={error} />{!!error && <Button label="Retry" onPress={load} />}
+        <Text style={type.caption}>{connections.length} {kind === 'followers'
+          ? connections.length === 1 ? 'person follows this account' : 'people follow this account'
+          : connections.length === 1 ? 'account followed' : 'accounts followed'}</Text>
       </View>}
       ListEmptyComponent={<Card><Text style={type.body}>No {kind} yet.</Text></Card>}
       renderItem={({ item }) => <Card style={{ padding: spacing.md }}><Pressable onPress={() => router.push(`/profile/${item.id}`)} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
