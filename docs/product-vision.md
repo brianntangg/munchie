@@ -22,6 +22,7 @@ Status reflects the `main` branch. Update this table as features land.
 | --- | --- | --- |
 | Campus sign-in | Email verification code restricted to Vanderbilt addresses | Built |
 | Profiles | Display name chosen on first sign-in; session persists across launches | Built |
+| Student profiles | Open a student's profile from their post to see their posts and post, follower, and following counts | Built |
 | Profile editing | Change display name and other profile details after setup | Planned |
 
 ### Feed and posts
@@ -32,7 +33,7 @@ Status reflects the `main` branch. Update this table as features land.
 | Shared feed | Paginated feed of all members' posts, pull-to-refresh, and post detail pages | Built |
 | Automatic refresh | Feed reloads on its own when the app returns to the foreground | Planned |
 | Edit and delete posts | Authors can correct or remove their own posts | Planned |
-| Likes and comments | React to and discuss other members' posts | Planned |
+| Likes and comments | React to and discuss other members' posts | In progress: likes and comments tables with access rules built; app screens planned |
 
 ### Dining halls
 
@@ -40,7 +41,7 @@ Status reflects the `main` branch. Update this table as features land.
 | --- | --- | --- |
 | Hall pages | Each dining hall lists only the posts made there | Built |
 | Open/closed status | Each hall shows whether it is currently open, based on its operating hours | Done: Dining tab shows open/closed from scraped hours |
-| Live menus | Menus synced on a schedule from NetNutrition and attached to the correct hall | Planned |
+| Live menus | Menus synced on a schedule from NetNutrition and attached to the correct hall | Built: weekly GitHub Actions sync imports menus (hall hours come from a migration) |
 | Meal posting windows | Posting limited to the meal periods a hall is serving | Planned |
 
 ### Ratings
@@ -63,6 +64,7 @@ Status reflects the `main` branch. Update this table as features land.
 | Member-only access | Database and storage policies enforce membership and ownership | Built |
 | Moderation | Report and remove inappropriate content | Planned |
 | Upload cleanup | Scheduled removal of photos never attached to a post | Planned |
+| Threat model | Data-flow diagram, STRIDE threats, and OWASP review in [`docs/security/threat-model.md`](security/threat-model.md) | Built |
 
 ## Quality bar
 
