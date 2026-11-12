@@ -42,7 +42,8 @@ export default function TabsLayout() {
       <Tabs.Screen name="new-post" options={{ title: 'Post', tabBarIcon: icon('camera') }} />
       {/* Opened from the header's corners rather than the tab bar. */}
       <Tabs.Screen name="friends" options={{ title: 'Friends', href: null, headerLeft: () => <BackButton /> }} />
-      <Tabs.Screen name="account" options={{ title: 'Account', href: null, headerLeft: () => <BackButton /> }} />
+      {/* No avatar on Account itself: it would only link to the screen already open. */}
+      <Tabs.Screen name="account" options={{ title: 'Account', href: null, headerLeft: () => <BackButton />, headerRight: () => null }} />
     </Tabs></HeaderHeightContext.Provider></UnderHeaderContext.Provider></ProfileGate>
   );
 }
