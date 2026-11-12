@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { useFocusEffect } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { Text, View } from 'react-native';
 import { Avatar, Banner, Button, Card } from '@/components/ui';
 import { Feed } from '@/components/Feed';
@@ -30,7 +30,7 @@ export default function AccountScreen() {
   }
   if (!userId) return null;
   return <Feed authorId={userId} title="My account" header={<>
-    <Card style={{ alignItems: 'center', gap: spacing.md }}><Avatar name={profile?.displayName || 'Student'} size={72} /><View style={{ alignItems: 'center' }}><Text style={type.heading}>{profile?.displayName ?? ''}</Text><Text style={type.caption}>{session.user.email}</Text></View>{profile && <ProfileStats profile={profile} />}</Card>
+    <Card style={{ alignItems: 'center', gap: spacing.md }}><Avatar name={profile?.displayName || 'Student'} size={72} /><View style={{ alignItems: 'center' }}><Text style={type.heading}>{profile?.displayName ?? ''}</Text><Text style={type.caption}>{session.user.email}</Text></View>{profile && <ProfileStats profile={profile} onFollowersPress={() => router.push(`/profile/${userId}/connections?tab=followers`)} onFollowingPress={() => router.push(`/profile/${userId}/connections?tab=following`)} />}</Card>
     <Banner message={error} />{!!error && <Button label="Retry account" onPress={() => setAttempt((n) => n + 1)} />}<Button label="Sign out" variant="danger" loading={busy} onPress={signOut} /><Text style={type.heading}>My posts</Text>
   </>} />;
 }

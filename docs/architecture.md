@@ -15,8 +15,11 @@ to `src/` in `tsconfig.json`; restart Metro after changing aliases or entry poin
 | `app/dining/[id].tsx` | Feed filtered by dining hall |
 | `app/post/[id].tsx` | Single post from Supabase |
 | `app/profile/[id].tsx` | A student's name, post count, and posts; opened from a post's author |
+| `app/profile/[id]/connections.tsx` | A student's followers and following lists |
 | `components/ui.tsx`, `theme.ts` | Shared visual components and design tokens |
 | `components/form-ui.tsx` | Form helpers and styles used by login, profile, post, and feed; wraps the shared Button |
+| `components/Feed.tsx`, `PostCard.tsx` | Paginated feed and actual uploaded photos |
+| `components/FollowButton.tsx`, `ProfileStats.tsx` | Follow controls and clickable follower/following counts |
 | `components/Feed.tsx`, `PostCard.tsx` | Paginated feed; a post's photos swipe side by side, showing the dish (and its score) in the photo on screen |
 | `components/PhotoDetails.tsx` | The "What did you eat?" step: a large preview, a strip of all the photos, a field that searches the hall's menu as you type (3 best matches; pick one to rate it, or keep what you typed), 3 dishes offered before anything is typed (the hall's most-rated, or the first on its menu when none are rated yet), and the photo summary list on the form |
 | `components/StarRating.tsx` | Tap-to-choose 1–5 star input |
@@ -28,6 +31,7 @@ to `src/` in `tsconfig.json`; restart Metro after changing aliases or entry poin
 | `lib/menu.ts` | A hall's dishes (ordered by station, then name), ranked 3-dish suggestions used by the post form, and the hall's most-rated dishes (ranked in the database by `popular_dishes`) |
 | `lib/ratings.ts` | Score validation (whole numbers 1–5), submit or replace a dish rating, the current user's score, dish averages |
 | `lib/profiles.ts` | A student's display name with post, follower, and following counts (count-only queries), and count labels |
+| `lib/follows.ts` | Follow mutations, following IDs, and follower/following profile queries |
 | `lib/database.types.ts` | Generated database types; regenerate after schema changes |
 
 ## Authentication and data flow

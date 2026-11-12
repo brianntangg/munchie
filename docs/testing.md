@@ -18,13 +18,14 @@ tab. Start the web app and enable Chrome's
 | Post | Choose a file, select a hall, add a caption, submit | Actual photo storage and post creation |
 | Dining | Open that hall and the meal detail | Hall filtering and detail navigation |
 | Account | Show your name and posts | Current user's profile and author filter |
+| Friends | Follow another student, open the Friends tab, and open follower/following lists from Account | Following-only posts and connection navigation |
 | Rate | On the Post tab, choose a photo and a hall, search for a dish, tap it, tap a star, then **Post meal and rating**. The new post in the feed shows the dish name and stars; repeat for the same dish with a different star count | A rating saved with the post and shown on it; rating a dish again changes the score instead of adding one |
 | Several photos | On the Post tab, pick a hall first, then choose up to 5 photos from the library. The "What did you eat?" screen opens with all your photos in a strip and 3 dishes listed under the "Which dish is this?" search box (popular ones, or the first on the menu at a hall nobody has rated yet). Tap one, or type "chick" and pick a menu match, rate it, tap the next photo, and type something that isn't on the menu (for example "Grandma's soup"). Press **Done**, then post and swipe the photos on the feed card | Something is always offered to tap before typing; menu matches appear as you type and can be rated; anything else is kept as typed and can be rated too; the summary list shows every photo's label; a sixth photo is not allowed; the same dish can't be tagged on two photos |
 | Second user | Use a private window to sign in as `bob@vanderbilt.edu` and refresh | Shared data across accounts |
 
-Do not present Friends, sample menu data, or phone camera behavior as completed
-features. Test fixtures may appear in the feed from previous automated runs.
-Real food photos make the demo clearer than tiny fixtures.
+Do not present sample menu data or phone camera behavior as completed features.
+Test fixtures may appear in the feed from previous automated runs. Real food photos
+make the demo clearer than tiny fixtures.
 
 ## Automated checks
 

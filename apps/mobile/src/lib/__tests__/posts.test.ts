@@ -283,6 +283,16 @@ describe('loadPosts filters', () => {
     expect(queryCalls('eq')).toEqual([['author_id', 'user-1']]);
   });
 
+  it('filters by followed authors', async () => {
+    await loadPosts(undefined, { authorIds: ['user-1', 'user-2'] });
+    expect(queryCalls('in')).toEqual([['author_id', ['user-1', 'user-2']]]);
+  });
+
+  it('returns no posts when nobody is followed', async () => {
+    await expect(loadPosts(undefined, { authorIds: [] })).resolves.toEqual([]);
+    expect(mockListResult).not.toHaveBeenCalled();
+  });
+
   it('continues after the cursor, breaking timestamp ties by id', async () => {
     await loadPosts({ created_at: '2026-10-01T12:00:00Z', id: 'post-9' });
     expect(queryCalls('or')).toEqual([['created_at.lt.2026-10-01T12:00:00Z,and(created_at.eq.2026-10-01T12:00:00Z,id.lt.post-9)']]);

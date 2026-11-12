@@ -30,10 +30,12 @@ authentication, PostgreSQL, and private image storage.
 - Upload a camera/library photo with a dining hall and optional caption.
 - Browse a paginated shared feed, refresh it, and open a post.
 - Browse dining halls and their posts; view your profile and your own posts.
+- Follow other students, view their posts in the Friends tab, and browse follower
+  and following lists from profiles or the Account tab.
 - Sign out. Database and storage permissions enforce member access and ownership.
 
-Friends is a coming-soon screen, and the scraper's output is not yet connected to
-the app. See the [product vision](docs/product-vision.md) for planned features.
+The scraper's output is not yet connected to the app. See the
+[product vision](docs/product-vision.md) for planned features.
 
 Email verification establishes access to a Vanderbilt mailbox, not independently
 verified student enrollment. The [live site](https://brianntangg.github.io/munchie)

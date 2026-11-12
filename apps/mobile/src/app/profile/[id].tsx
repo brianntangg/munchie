@@ -1,7 +1,8 @@
 import { useCallback, useState } from 'react';
-import { useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { Text } from 'react-native';
 import { Feed } from '@/components/Feed';
+import { FollowButton } from '@/components/FollowButton';
 import { Avatar, Banner, Button, Card, Screen } from '@/components/ui';
 import { ProfileStats } from '@/components/ProfileStats';
 import { loadProfile, type Profile } from '@/lib/profiles';
@@ -22,7 +23,7 @@ export default function ProfileScreen() {
   }, [id, attempt]));
   if (profile === null) return <Screen edges={[]}><Text style={type.body}>Student not found.</Text></Screen>;
   return <Feed key={id} authorId={id} title={profile?.displayName ?? 'Profile'} edges={[]} header={<>
-    <Card style={{ alignItems: 'center', gap: spacing.md }}><Avatar name={profile?.displayName || 'Student'} size={72} /><Text style={type.heading}>{profile?.displayName ?? ''}</Text>{profile && <ProfileStats profile={profile} />}</Card>
+    <Card style={{ alignItems: 'center', gap: spacing.md }}><Avatar name={profile?.displayName || 'Student'} size={72} /><Text style={type.heading}>{profile?.displayName ?? ''}</Text>{profile && <ProfileStats profile={profile} onFollowersPress={() => router.push(`/profile/${id}/connections?tab=followers`)} onFollowingPress={() => router.push(`/profile/${id}/connections?tab=following`)} />}{profile && <FollowButton userId={profile.id} onChanged={() => setAttempt((n) => n + 1)} />}</Card>
     <Banner message={error} />{!!error && <Button label="Retry profile" onPress={() => setAttempt((n) => n + 1)} />}<Text style={type.heading}>Posts</Text>
   </>} />;
 }
