@@ -2,8 +2,9 @@ import { AccountButton, BackButton, FriendsButton, HeaderBackground, HeaderTitle
 import { ProfileGate } from '@/components/ProfileGate';
 import { HeaderHeightContext, UnderHeaderContext } from '@/components/SafeArea';
 import { useAuth } from '@/lib/auth';
+import { loadDisplayName } from '@/lib/profiles';
 import { Tabs } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { ColorValue } from 'react-native';
 import Feather from '@expo/vector-icons/Feather';
 
@@ -18,6 +19,16 @@ const icon = (name: 'home' | 'coffee' | 'camera') =>
 export default function TabsLayout() {
   const { session } = useAuth();
   const [headerHeight, setHeaderHeight] = useState(0);
+  // Loaded once per member for the header avatar on every tab. The name only changes when a profile is first set up,
+  // which happens before these tabs show (ProfileGate).
+  const [displayName, setDisplayName] = useState<string | null>(null);
+  const userId = session?.user.id;
+  useEffect(() => {
+    if (!userId) return;
+    let active = true;
+    loadDisplayName(userId).then((name) => { if (active) setDisplayName(name); }).catch(() => {});
+    return () => { active = false; };
+  }, [userId]);
   if (!session) return null;
   return (
     // Every tab screen sits under the Munchie header, so their safe-area views skip the top inset.
@@ -29,7 +40,7 @@ export default function TabsLayout() {
         headerTitleAlign: 'center',
         headerTitle: () => <HeaderTitle />,
         headerLeft: () => <FriendsButton />,
-        headerRight: () => <AccountButton userId={session.user.id} />,
+        headerRight: () => <AccountButton name={displayName} />,
         headerBackground: () => <HeaderBackground onHeight={setHeaderHeight} />,
         headerShadowVisible: false,
         tabBarActiveTintColor: colors.text,
