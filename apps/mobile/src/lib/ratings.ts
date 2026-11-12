@@ -20,8 +20,10 @@ export async function submitRating({ menuItemId, score }: { menuItemId: string; 
   const { data: { session }, error: sessionError } = await supabase.auth.getSession();
   if (sessionError) throw sessionError;
   if (!session) throw new Error('Sign in to rate this dish.');
-  const { error: updateError } = await supabase.from('ratings').update({ score }).eq('menu_item_id', menuItemId).eq('author_id', session.user.id);
+  const { data: updated, error: updateError } = await supabase.from('ratings').update({ score }).eq('menu_item_id', menuItemId).eq('author_id', session.user.id).select('id');
   if (updateError) throw updateError;
+  // An update that matches no row is not an error to the API, so check that the score was really changed (review of #56).
+  if (!updated?.length) throw new Error('Your rating was not saved. Please try again.');
 }
 
 // The signed-in member's current score for a dish, or null if they have not rated it.
