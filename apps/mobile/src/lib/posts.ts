@@ -3,8 +3,8 @@ import { supabase } from './supabase';
 import type { Tables } from './database.types';
 import { isValidScore } from './ratings';
 
-// `dish` is what the photo shows: a menu item with its author's current score for it (null if they have not rated it),
-// or free text the author typed, with the score they gave it when posting (null if they did not).
+// `dish` is what the photo shows: a menu item or free text the author typed, with the score they gave it when posting
+// (null if they did not). The score is fixed with the post, so rating the dish again later does not change older posts.
 export type FeedPhoto = { id: string; imageUrl: string | null; dish: { name: string; score: number | null } | null };
 // `photos` are in display order; the first is the cover.
 export type FeedPost = Tables<'posts'> & { profiles: { display_name: string }; dining_halls: { name: string }; photos: FeedPhoto[] };
@@ -12,21 +12,9 @@ export const PAGE_SIZE = 20;
 // The database enforces the same limit on a post's photo slots.
 export const MAX_PHOTOS = 5;
 const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
-const POST_COLUMNS = '*, profiles!inner(display_name), dining_halls!inner(name), post_photos(id, slot, photo_path, menu_item_id, dish_text, dish_text_score, menu_items(name))';
-type PhotoRow = Pick<Tables<'post_photos'>, 'id' | 'slot' | 'photo_path' | 'menu_item_id' | 'dish_text' | 'dish_text_score'> & { menu_items: { name: string } | null };
+const POST_COLUMNS = '*, profiles!inner(display_name), dining_halls!inner(name), post_photos(id, slot, photo_path, menu_item_id, menu_item_score, dish_text, dish_text_score, menu_items(name))';
+type PhotoRow = Pick<Tables<'post_photos'>, 'id' | 'slot' | 'photo_path' | 'menu_item_id' | 'menu_item_score' | 'dish_text' | 'dish_text_score'> & { menu_items: { name: string } | null };
 type PostRow = Tables<'posts'> & { profiles: { display_name: string }; dining_halls: { name: string }; post_photos: PhotoRow[] };
-
-// Ratings stay the single source of truth, so a photo's score is looked up as its post author's rating of the dish.
-async function loadScores(rows: PostRow[]): Promise<Map<string, number>> {
-  const tagged = rows.flatMap((row) => row.post_photos.filter((photo) => photo.menu_item_id).map((photo) => ({ authorId: row.author_id, itemId: photo.menu_item_id! })));
-  const scores = new Map<string, number>();
-  if (!tagged.length) return scores;
-  const { data, error } = await supabase.from('ratings').select('author_id, menu_item_id, score')
-    .in('menu_item_id', [...new Set(tagged.map((tag) => tag.itemId))]).in('author_id', [...new Set(tagged.map((tag) => tag.authorId))]);
-  if (error) throw error;
-  for (const rating of data) scores.set(`${rating.author_id}:${rating.menu_item_id}`, rating.score);
-  return scores;
-}
 
 async function toFeedPosts(rows: PostRow[]): Promise<FeedPost[]> {
   const ordered = rows.map((row) => [...row.post_photos].sort((a, b) => a.slot - b.slot));
@@ -37,14 +25,13 @@ async function toFeedPosts(rows: PostRow[]): Promise<FeedPost[]> {
     if (error) throw error;
     urls = data;
   }
-  const scores = await loadScores(rows);
   let next = 0;
   return rows.map(({ post_photos: _photos, ...post }, index) => ({
     ...post,
     photos: ordered[index].map((photo) => ({
       id: photo.id,
       imageUrl: urls[next++]?.signedUrl || null,
-      dish: photo.menu_item_id && photo.menu_items ? { name: photo.menu_items.name, score: scores.get(`${post.author_id}:${photo.menu_item_id}`) ?? null } : photo.dish_text ? { name: photo.dish_text, score: photo.dish_text_score } : null,
+      dish: photo.menu_item_id && photo.menu_items ? { name: photo.menu_items.name, score: photo.menu_item_score } : photo.dish_text ? { name: photo.dish_text, score: photo.dish_text_score } : null,
     })),
   }));
 }
@@ -65,14 +52,16 @@ export async function loadPosts(cursor?: { created_at: string; id: string }, fil
 
 // The first photo is the post's cover and is stored under the post's id; its own `id` is not used.
 // Every other photo needs a stable `id` so a retry never uploads or attaches it twice.
-// A photo names a menu dish (`menuItemId`) or free text (`dishText`), not both. A menu dish is rated separately
-// (see post-with-rating); free text has no menu item, so its optional score (`dishTextScore`) is saved with the photo.
-export type PostPhotoInput = { id: string; base64: string; menuItemId?: string; dishText?: string; dishTextScore?: number };
+// A photo names a menu dish (`menuItemId`) or free text (`dishText`), not both, with an optional score for it
+// (`menuItemScore` or `dishTextScore`) that is saved with the photo. A menu dish's score is also saved as the member's
+// rating (see post-with-rating), which feeds the dish's average; free text has no menu item, so it never counts there.
+export type PostPhotoInput = { id: string; base64: string; menuItemId?: string; menuItemScore?: number; dishText?: string; dishTextScore?: number };
 export const MAX_DISH_TEXT = 100;
 
 // Only the dish columns a photo actually uses are sent, so an unlabeled photo stays null in both.
-const dishColumns = ({ menuItemId, dishText, dishTextScore }: PostPhotoInput) => ({
+const dishColumns = ({ menuItemId, menuItemScore, dishText, dishTextScore }: PostPhotoInput) => ({
   ...(menuItemId ? { menu_item_id: menuItemId } : {}),
+  ...(menuItemId && menuItemScore !== undefined ? { menu_item_score: menuItemScore } : {}),
   ...(dishText ? { dish_text: dishText.trim() } : {}),
   ...(dishText && dishTextScore !== undefined ? { dish_text_score: dishTextScore } : {}),
 });
@@ -95,7 +84,8 @@ export async function publishPost({ id, userId, hallId, caption, photos }: { id:
   if (photos.some((photo) => photo.menuItemId && photo.dishText)) throw new Error('Name a menu dish or type your own, not both.');
   if (photos.some((photo) => photo.dishText !== undefined && !(photo.dishText.trim().length >= 1 && photo.dishText.trim().length <= MAX_DISH_TEXT))) throw new Error(`Describe each photo in 1 to ${MAX_DISH_TEXT} characters.`);
   if (photos.some((photo) => photo.dishTextScore !== undefined && photo.dishText === undefined)) throw new Error('Only a labeled photo can be rated.');
-  if (photos.some((photo) => photo.dishTextScore !== undefined && !isValidScore(photo.dishTextScore))) throw new Error('Choose a score from 1 to 5.');
+  if (photos.some((photo) => photo.menuItemScore !== undefined && photo.menuItemId === undefined)) throw new Error('Only a labeled photo can be rated.');
+  if (photos.some((photo) => [photo.dishTextScore, photo.menuItemScore].some((score) => score !== undefined && !isValidScore(score)))) throw new Error('Choose a score from 1 to 5.');
   const { data: existing, error: checkError } = await supabase.from('posts').select('id, author_id').eq('id', id).maybeSingle();
   if (checkError) throw checkError;
   if (existing && existing.author_id !== userId) throw new Error('This post belongs to another member.');

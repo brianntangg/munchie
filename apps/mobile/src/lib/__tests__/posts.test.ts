@@ -28,7 +28,10 @@ jest.mock('../supabase', () => {
   }
   return {
     supabase: {
-      from: () => query,
+      from: (table: string) => {
+        mockQueryCall('from', table);
+        return query;
+      },
       storage: {
         from: () => ({
           upload: (...args: unknown[]) => mockUpload(...args),
@@ -112,6 +115,13 @@ describe('publishPost validation', () => {
     expect(mockUpload).not.toHaveBeenCalled();
   });
 
+  it('rejects a menu-dish score on a photo without a menu dish, or outside 1-5, before doing anything', async () => {
+    await expect(publishPost({ ...post, photos: [{ ...cover, menuItemScore: 4 }] })).rejects.toThrow('Only a labeled photo can be rated.');
+    await expect(publishPost({ ...post, photos: [{ ...cover, menuItemId: 'dish-1', menuItemScore: 6 }] })).rejects.toThrow('Choose a score from 1 to 5.');
+    expect(mockMaybeSingle).not.toHaveBeenCalled();
+    expect(mockUpload).not.toHaveBeenCalled();
+  });
+
   it('accepts free text of exactly the maximum length', async () => {
     await expect(publishPost({ ...post, photos: [{ ...cover, dishText: 'x'.repeat(MAX_DISH_TEXT) }] })).resolves.toBeUndefined();
   });
@@ -147,6 +157,16 @@ describe('publishPost success', () => {
     expect(mockUpsert).toHaveBeenCalledWith([
       { id: 'photo-1', post_id: 'post-1', dining_hall_id: 'hall-1', slot: 1, photo_path: 'user-1/photo-1.jpg', dish_text: 'Mystery taco', dish_text_score: 2 },
       { id: 'photo-2', post_id: 'post-1', dining_hall_id: 'hall-1', slot: 2, photo_path: 'user-1/photo-2.jpg', dish_text: 'Plain toast' },
+    ], { onConflict: 'id', ignoreDuplicates: true });
+  });
+
+  // Review of #56: each post keeps the score its author gave, so rating the dish again later cannot change it.
+  it('saves the score of menu-dish photos with the photo, on the cover and on extra photos', async () => {
+    await publishPost({ ...post, photos: [{ ...cover, menuItemId: 'dish-1', menuItemScore: 5 }, extra(1, 'dish-2'), { ...extra(2, 'dish-3'), menuItemScore: 1 }] });
+    expect(mockInsert).toHaveBeenCalledWith({ id: 'post-1', author_id: 'user-1', dining_hall_id: 'hall-1', menu_item_id: 'dish-1', menu_item_score: 5, caption: 'Great pasta', photo_path: path });
+    expect(mockUpsert).toHaveBeenCalledWith([
+      { id: 'photo-1', post_id: 'post-1', dining_hall_id: 'hall-1', slot: 1, photo_path: 'user-1/photo-1.jpg', menu_item_id: 'dish-2' },
+      { id: 'photo-2', post_id: 'post-1', dining_hall_id: 'hall-1', slot: 2, photo_path: 'user-1/photo-2.jpg', menu_item_id: 'dish-3', menu_item_score: 1 },
     ], { onConflict: 'id', ignoreDuplicates: true });
   });
 
@@ -259,7 +279,7 @@ describe('publishPost failures', () => {
 // A photo of a post as returned by the feed query: slot 0 is the cover, stored under the post id.
 const photoRow = (postId: string, slot: number, fields: object = {}) => {
   const id = slot === 0 ? postId : `${postId}-${slot}`;
-  return { id, slot, photo_path: `user-1/${id}.jpg`, menu_item_id: null, dish_text: null, dish_text_score: null, menu_items: null, ...fields };
+  return { id, slot, photo_path: `user-1/${id}.jpg`, menu_item_id: null, menu_item_score: null, dish_text: null, dish_text_score: null, menu_items: null, ...fields };
 };
 const row = (id: string, photos = [photoRow(id, 0)]) => ({ id, author_id: 'user-1', photo_path: `user-1/${id}.jpg`, caption: '', profiles: { display_name: 'Alice' }, dining_halls: { name: 'Rand' }, post_photos: photos });
 const { post_photos: _unused, ...withoutPhotos } = row('x');
@@ -344,55 +364,46 @@ describe('loadPosts results', () => {
 });
 
 // A photo tagged with a dish, as returned with the dish name joined in.
-const dishPhoto = (postId: string, slot: number, itemId: string, dishName: string) => photoRow(postId, slot, { menu_item_id: itemId, menu_items: { name: dishName } });
+const dishPhoto = (postId: string, slot: number, itemId: string, dishName: string, score: number | null = null) => photoRow(postId, slot, { menu_item_id: itemId, menu_item_score: score, menu_items: { name: dishName } });
 const dishPost = (id: string, authorId: string, photos: ReturnType<typeof photoRow>[]) => ({ ...row(id, photos), author_id: authorId });
 
 describe('loadPosts dishes', () => {
-  it("shows each photo's dish with its author's own score for it", async () => {
-    mockListResult
-      .mockResolvedValueOnce({ data: [dishPost('a', 'alice', [dishPhoto('a', 0, 'dish-1', 'Achiote Chicken')]), dishPost('b', 'bob', [dishPhoto('b', 0, 'dish-1', 'Achiote Chicken')]), row('c')], error: null })
-      .mockResolvedValueOnce({ data: [{ author_id: 'alice', menu_item_id: 'dish-1', score: 4 }, { author_id: 'bob', menu_item_id: 'dish-1', score: 2 }], error: null });
+  it("shows each photo's dish with the score saved on that photo", async () => {
+    mockListResult.mockResolvedValue({ data: [dishPost('a', 'alice', [dishPhoto('a', 0, 'dish-1', 'Achiote Chicken', 4)]), dishPost('b', 'bob', [dishPhoto('b', 0, 'dish-1', 'Achiote Chicken', 2)]), row('c')], error: null });
     const posts = await loadPosts();
     expect(posts.map((p) => p.photos[0].dish)).toEqual([{ name: 'Achiote Chicken', score: 4 }, { name: 'Achiote Chicken', score: 2 }, null]);
-    expect(queryCalls('in')).toEqual([['menu_item_id', ['dish-1']], ['author_id', ['alice', 'bob']]]);
+  });
+
+  // Review of #56: a post's stars are the score given with that post, not the author's current rating.
+  it('keeps each post of the same dish at its own score', async () => {
+    mockListResult.mockResolvedValue({ data: [dishPost('friday', 'alice', [dishPhoto('friday', 0, 'dish-1', 'Achiote Chicken', 2)]), dishPost('monday', 'alice', [dishPhoto('monday', 0, 'dish-1', 'Achiote Chicken', 5)])], error: null });
+    const posts = await loadPosts();
+    expect(posts.map((p) => p.photos[0].dish?.score)).toEqual([2, 5]);
   });
 
   it('gives each photo of one post its own dish and score, and leaves untagged photos without one', async () => {
-    mockListResult
-      .mockResolvedValueOnce({ data: [dishPost('a', 'alice', [dishPhoto('a', 0, 'dish-1', 'Achiote Chicken'), dishPhoto('a', 1, 'dish-2', 'Mac and Cheese'), photoRow('a', 2)])], error: null })
-      .mockResolvedValueOnce({ data: [{ author_id: 'alice', menu_item_id: 'dish-1', score: 4 }, { author_id: 'alice', menu_item_id: 'dish-2', score: 1 }], error: null });
+    mockListResult.mockResolvedValue({ data: [dishPost('a', 'alice', [dishPhoto('a', 0, 'dish-1', 'Achiote Chicken', 4), dishPhoto('a', 1, 'dish-2', 'Mac and Cheese', 1), photoRow('a', 2)])], error: null });
     const [first] = await loadPosts();
     expect(first.photos.map((photo) => photo.dish)).toEqual([{ name: 'Achiote Chicken', score: 4 }, { name: 'Mac and Cheese', score: 1 }, null]);
-    expect(queryCalls('in')).toEqual([['menu_item_id', ['dish-1', 'dish-2']], ['author_id', ['alice']]]);
   });
 
-  it('shows the dish without a score when its author has not rated it', async () => {
-    mockListResult
-      .mockResolvedValueOnce({ data: [dishPost('a', 'alice', [dishPhoto('a', 0, 'dish-1', 'Achiote Chicken')])], error: null })
-      .mockResolvedValueOnce({ data: [{ author_id: 'bob', menu_item_id: 'dish-1', score: 5 }], error: null });
+  it('shows the dish without a score when its author did not rate it', async () => {
+    mockListResult.mockResolvedValue({ data: [dishPost('a', 'alice', [dishPhoto('a', 0, 'dish-1', 'Achiote Chicken', null)])], error: null });
     const [first] = await loadPosts();
     expect(first.photos[0].dish).toEqual({ name: 'Achiote Chicken', score: null });
   });
 
-  it('shows free text as the photo\'s dish with the score saved on the photo, and no rating lookup', async () => {
+  it("shows free text as the photo's dish with the score saved on the photo", async () => {
     mockListResult.mockResolvedValue({ data: [dishPost('a', 'alice', [photoRow('a', 0, { dish_text: 'Grandma’s soup', dish_text_score: 4 }), photoRow('a', 1, { dish_text: 'Mystery taco' }), photoRow('a', 2)])], error: null });
     const [first] = await loadPosts();
     expect(first.photos.map((photo) => photo.dish)).toEqual([{ name: 'Grandma’s soup', score: 4 }, { name: 'Mystery taco', score: null }, null]);
-    expect(queryCalls('in')).toEqual([]);
   });
 
-  it('does not look up ratings when no photo has a dish', async () => {
-    mockListResult.mockResolvedValue({ data: [row('a')], error: null });
-    await loadPosts();
-    expect(queryCalls('in')).toEqual([]);
-  });
-
-  it('throws when ratings cannot be loaded', async () => {
-    const ratingsError = { message: 'permission denied' };
-    mockListResult
-      .mockResolvedValueOnce({ data: [dishPost('a', 'alice', [dishPhoto('a', 0, 'dish-1', 'Achiote Chicken')])], error: null })
-      .mockResolvedValueOnce({ data: null, error: ratingsError });
-    await expect(loadPosts()).rejects.toBe(ratingsError);
+  // Review of #56: the feed must not fail when ratings cannot be read, so it never reads them.
+  it('loads the feed without reading the ratings table', async () => {
+    mockListResult.mockResolvedValue({ data: [dishPost('a', 'alice', [dishPhoto('a', 0, 'dish-1', 'Achiote Chicken', 4)])], error: null });
+    await expect(loadPosts()).resolves.toHaveLength(1);
+    expect(queryCalls('from')).toEqual([['posts']]);
   });
 });
 
@@ -413,9 +424,8 @@ describe('loadPost', () => {
     expect(mockCreateSignedUrls).toHaveBeenCalledWith(['user-1/one.jpg', 'user-1/one-1.jpg'], 3600);
   });
 
-  it("returns each photo's dish with its author's score", async () => {
-    mockMaybeSingle.mockResolvedValue({ data: dishPost('one', 'alice', [dishPhoto('one', 0, 'dish-1', 'Achiote Chicken')]), error: null });
-    mockListResult.mockResolvedValue({ data: [{ author_id: 'alice', menu_item_id: 'dish-1', score: 5 }], error: null });
+  it("returns each photo's dish with the score saved on it", async () => {
+    mockMaybeSingle.mockResolvedValue({ data: dishPost('one', 'alice', [dishPhoto('one', 0, 'dish-1', 'Achiote Chicken', 5)]), error: null });
     expect((await loadPost('one'))?.photos[0].dish).toEqual({ name: 'Achiote Chicken', score: 5 });
   });
 

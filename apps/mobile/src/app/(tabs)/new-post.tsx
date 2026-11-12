@@ -115,7 +115,7 @@ export default function Post() {
   function reset() {
     setPhotos([]); setEditing(null); setCaption(''); setHallId(''); setDishes([]); setPopular([]); setDishError(''); setPosted(false); setPhotosPending(false); postId.current = null;
   }
-  // Menu dishes are rated in the ratings table; a typed label's score travels with its photo.
+  // Every score is saved with its photo, so the post keeps it; a menu dish's score is also the member's rating, which feeds its average.
   const ratingsOf = (list: PhotoDraft[]) => list.flatMap((photo) => (photo.dish && photo.score !== null ? [{ menuItemId: photo.dish.id, score: photo.score }] : []));
   const ratings = ratingsOf(photos);
   const typedLabel = (photo: PhotoDraft) => (!photo.dish && photo.text.trim()) || undefined;
@@ -128,7 +128,7 @@ export default function Post() {
     const labeled = posted ? photos : labelTypedDishes(photos, dishes);
     if (labeled.some((photo, index) => photo !== photos[index])) setPhotos(labeled);
     try {
-      const { ratingError, photosError } = await postWithRating({ postId: postId.current, userId, hallId, caption, photos: labeled.map((photo) => ({ id: photo.id, base64: photo.base64, menuItemId: photo.dish?.id, dishText: typedLabel(photo), dishTextScore: typedLabel(photo) && photo.score !== null ? photo.score : undefined })), ratings: ratingsOf(labeled), alreadyPosted: posted, photosPending });
+      const { ratingError, photosError } = await postWithRating({ postId: postId.current, userId, hallId, caption, photos: labeled.map((photo) => ({ id: photo.id, base64: photo.base64, menuItemId: photo.dish?.id, dishText: typedLabel(photo), dishTextScore: typedLabel(photo) && photo.score !== null ? photo.score : undefined, menuItemScore: photo.dish && photo.score !== null ? photo.score : undefined })), ratings: ratingsOf(labeled), alreadyPosted: posted, photosPending });
       if (photosError) {
         // The post is live and the ratings were attempted, so "Continue without the other photos" loses only those photos.
         setPosted(true); setPhotosPending(true);

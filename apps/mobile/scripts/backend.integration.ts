@@ -446,6 +446,21 @@ describe('Posts about a dish', () => {
     expect(error).toBeNull();
     expect(data).toEqual([{ author_id: bob.id, menu_item_id: dishInHall, score: 4 }]);
   });
+
+  // Review of #56: a post keeps the score given with it, even after its author rates the dish again.
+  test('a post keeps its own dish score after the author re-rates the dish, and the score cannot be edited', async () => {
+    const second = newPhoto(bob);
+    cleanup.push({ member: () => bob, path: second.path });
+    await upload(bob, second.path);
+    expect((await bob.api.from('posts').insert({ ...post('Rand', dishInHall), id: second.id, photo_path: second.path, menu_item_score: 5 })).error).toBeNull();
+    const { data: rerated, error: rerateError } = await bob.api.from('ratings').update({ score: 1 }).eq('menu_item_id', dishInHall).eq('author_id', bob.id).select('score');
+    expect(rerateError).toBeNull();
+    expect(rerated).toEqual([{ score: 1 }]);
+    const { data, error } = await alice.api.from('post_photos').select('menu_item_score').eq('post_id', second.id).eq('slot', 0).single();
+    expect(error).toBeNull();
+    expect(data?.menu_item_score).toBe(5);
+    expect((await bob.api.from('post_photos').update({ menu_item_score: 1 }).eq('post_id', second.id)).error?.code).toBe('42501');
+  });
 });
 
 describe('Posts with several photos', () => {
