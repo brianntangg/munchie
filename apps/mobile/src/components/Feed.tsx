@@ -7,6 +7,8 @@ import { SafeAreaView } from './SafeArea';
 import type { ReactNode } from 'react';
 import { message } from '../lib/supabase';
 import { loadPosts, PAGE_SIZE, type FeedPost } from '../lib/posts';
+import { loadLikes, type LikeSummary } from '../lib/likes';
+import { useAuth } from '../lib/auth';
 
 export function Feed({ hallId, authorId, authorIds, refreshFilter, title = 'Feed', header, edges = ['top'] }: { hallId?: string; authorId?: string; authorIds?: string[]; refreshFilter?: () => Promise<string[] | void>; title?: string; header?: ReactNode; edges?: ('top' | 'bottom')[] }) {
   const [posts, setPosts] = useState<FeedPost[]>([]);
@@ -14,7 +16,14 @@ export function Feed({ hallId, authorId, authorIds, refreshFilter, title = 'Feed
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(false);
   const [error, setError] = useState('');
+  const [likes, setLikes] = useState<Record<string, LikeSummary>>({});
+  const viewerId = useAuth().session?.user.id ?? null;
   const request = useRef(0);
+  // Like counts load after the posts, so a slow or failed request never holds up the feed; a card without counts
+  // just leaves out the like button.
+  const fetchLikes = useCallback((page: FeedPost[]) => {
+    loadLikes(page.map((post) => post.id), viewerId).then((next) => setLikes((current) => ({ ...current, ...next }))).catch(() => {});
+  }, [viewerId]);
   const pending = useRef(false);
   const refresh = useCallback(async () => {
     const version = ++request.current;
@@ -22,10 +31,10 @@ export function Feed({ hallId, authorId, authorIds, refreshFilter, title = 'Feed
     try {
       const refreshedAuthorIds = await refreshFilter?.();
       const next = await loadPosts(undefined, { hallId, authorId, authorIds: refreshedAuthorIds ?? authorIds });
-      if (version === request.current) { setPosts(next); setHasMore(next.length === PAGE_SIZE); }
+      if (version === request.current) { setPosts(next); setHasMore(next.length === PAGE_SIZE); fetchLikes(next); }
     } catch (error) { if (version === request.current) setError(message(error)); }
     finally { if (version === request.current) { pending.current = false; setRefreshing(false); } }
-  }, [hallId, authorId, authorIds, refreshFilter]);
+  }, [hallId, authorId, authorIds, refreshFilter, fetchLikes]);
   useFocusEffect(useCallback(() => {
     void refresh();
     return () => { request.current++; pending.current = false; };
@@ -36,7 +45,7 @@ export function Feed({ hallId, authorId, authorIds, refreshFilter, title = 'Feed
     pending.current = true; setLoadingMore(true); setError('');
     try {
       const next = await loadPosts(posts[posts.length - 1], { hallId, authorId, authorIds });
-      if (version === request.current) { setPosts((current) => [...current, ...next]); setHasMore(next.length === PAGE_SIZE); }
+      if (version === request.current) { setPosts((current) => [...current, ...next]); setHasMore(next.length === PAGE_SIZE); fetchLikes(next); }
     } catch (error) { if (version === request.current) setError(message(error)); }
     finally { if (version === request.current) { pending.current = false; setLoadingMore(false); } }
   }
@@ -48,7 +57,7 @@ export function Feed({ hallId, authorId, authorIds, refreshFilter, title = 'Feed
       <ErrorText>{error}</ErrorText>{!!error && <Button title="Retry feed" secondary onPress={refresh} />}
     </View>}
     ListEmptyComponent={<Text style={styles.body}>{refreshing ? 'Loading meals…' : error ? 'The feed could not be loaded.' : 'No meals yet. Be the first to share your plate.'}</Text>}
-    renderItem={({ item }) => <View style={{ marginBottom: 18 }}><PostCard post={item} /></View>}
+    renderItem={({ item }) => <View style={{ marginBottom: 18 }}><PostCard post={item} likes={likes[item.id]} /></View>}
     ListFooterComponent={loadingMore ? <ActivityIndicator /> : hasMore ? <Button title="Load more meals" secondary onPress={more} /> : null}
   /></SafeAreaView>;
 }
