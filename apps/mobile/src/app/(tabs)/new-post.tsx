@@ -31,7 +31,11 @@ export default function Post() {
   const [dishes, setDishes] = useState<MenuItem[]>([]);
   const [popular, setPopular] = useState<MenuItem[]>([]);
   const [dishError, setDishError] = useState('');
+  // The hall and attempt whose menu request has finished. Until it matches, the menu is still loading, so the photo
+  // screen does not read an empty list as "no dishes" (review of #56).
+  const [menuDone, setMenuDone] = useState('');
   const [dishAttempt, setDishAttempt] = useState(0);
+  const dishesLoading = !!hallId && menuDone !== `${hallId}#${dishAttempt}`;
   // True once the post is published but a rating still needs saving, so a retry never creates a second post.
   const [posted, setPosted] = useState(false);
   // True once the post is published but its extra photos still need attaching. The draft is locked like `posted`,
@@ -52,7 +56,9 @@ export default function Post() {
   useEffect(() => {
     if (!session || !hallId) return;
     let active = true;
-    loadMenuItems(hallId).then((items) => { if (active) setDishes(items); }).catch((error) => { if (active) setDishError(message(error)); });
+    const key = `${hallId}#${dishAttempt}`;
+    loadMenuItems(hallId).then((items) => { if (active) setDishes(items); }).catch((error) => { if (active) setDishError(message(error)); })
+      .finally(() => { if (active) setMenuDone(key); });
     // Only a convenience, so a failure just means no starter suggestions; searching still works.
     loadPopularDishes(hallId).then((items) => { if (active) setPopular(items); }).catch(() => { if (active) setPopular([]); });
     return () => { active = false; };
@@ -144,7 +150,7 @@ export default function Post() {
   }
   const locked = busy || posted;
   const hallName = halls.find((hall) => hall.id === hallId)?.name ?? 'dining hall';
-  if (editing && photos.length) return <PhotoDetails photos={photos} activeId={editing} hallName={hallName} dishes={dishes} popular={popular} dishError={dishError} maxPhotos={MAX_PHOTOS} busy={busy} locked={posted} error={error}
+  if (editing && photos.length) return <PhotoDetails photos={photos} activeId={editing} hallName={hallName} dishes={dishes} popular={popular} dishError={dishError} dishesLoading={dishesLoading} maxPhotos={MAX_PHOTOS} busy={busy} locked={posted} error={error}
     onSelect={setEditing} onChange={changePhoto} onRemove={removePhoto} onAddMore={() => addPhotos(false)} onDone={() => setEditing(null)} onReloadDishes={() => { setDishError(''); setDishAttempt((value) => value + 1); }} />;
   const atLimit = photos.length >= MAX_PHOTOS;
   return <SafeAreaView style={styles.screen} edges={['top']}><KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={headerHeight}><ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content}>

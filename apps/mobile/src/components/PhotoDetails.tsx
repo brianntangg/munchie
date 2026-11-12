@@ -41,6 +41,8 @@ type Props = {
   // The hall's most-rated dishes, offered before anything is typed.
   popular: MenuItem[];
   dishError: string;
+  // The hall's menu is still loading, so an empty list does not yet mean the dish is not on it.
+  dishesLoading: boolean;
   // The form's last error, such as a photo from "+" that could not be added, so it is visible on this screen too.
   error: string;
   maxPhotos: number;
@@ -57,7 +59,7 @@ type Props = {
 
 // Full-screen step after choosing photos: shows them all, and asks what each one is. Typing searches the hall's menu;
 // picking a match or keeping what they typed both let the member rate it.
-export function PhotoDetails({ photos, activeId, hallName, dishes, popular, dishError, error, maxPhotos, busy, locked, onSelect, onChange, onRemove, onAddMore, onReloadDishes, onDone }: Props) {
+export function PhotoDetails({ photos, activeId, hallName, dishes, popular, dishError, dishesLoading, error, maxPhotos, busy, locked, onSelect, onChange, onRemove, onAddMore, onReloadDishes, onDone }: Props) {
   const headerHeight = useHeaderHeight();
   const index = Math.max(0, photos.findIndex((photo) => photo.id === activeId));
   const photo = photos[index];
@@ -104,8 +106,8 @@ export function PhotoDetails({ photos, activeId, hallName, dishes, popular, dish
         </Pressable>)}
         {total > shown.length && <Text style={[type.caption, { padding: spacing.md }]}>{total - shown.length} more {total - shown.length === 1 ? 'dish matches' : 'dishes match'}. Keep typing to narrow it down.</Text>}
       </View>}
-      {!typed && <Text style={styles.body}>{shown.length ? 'Tap a dish to rate it, or start typing.' : `Type to search the ${hallName} menu.`} Not on the menu? Type your own name for it.</Text>}
-      {!!typed && <Text style={styles.body}>{shown.length ? 'Not on the list? ' : `Nothing on the ${hallName} menu matches. Check the spelling, or keep it: `}We’ll label this photo “{typed}”.</Text>}
+      {!typed && <Text style={styles.body}>{shown.length ? 'Tap a dish to rate it, or start typing.' : dishesLoading ? `Loading the ${hallName} menu…` : `Type to search the ${hallName} menu.`} Not on the menu? Type your own name for it.</Text>}
+      {!!typed && <Text style={styles.body}>{shown.length ? 'Not on the list? ' : dishesLoading ? `Still loading the ${hallName} menu. If it is not there, ` : `Nothing on the ${hallName} menu matches. Check the spelling, or keep it: `}We’ll label this photo “{typed}”.</Text>}
     </View>}
 
     {photo.dish || (typed && !locked) ? <View style={{ gap: spacing.md }}>
