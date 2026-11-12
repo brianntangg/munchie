@@ -11,6 +11,11 @@ async function signedInId(): Promise<string> {
   return session.user.id;
 }
 
+// What a post's like button shows right after a tap: one more like, or one fewer, and the heart flipped.
+export function toggledLike({ count, likedByMe }: LikeSummary): LikeSummary {
+  return likedByMe ? { count: Math.max(0, count - 1), likedByMe: false } : { count: count + 1, likedByMe: true };
+}
+
 // Likes the post as the signed-in member. Liking a post twice is harmless: the second like is ignored.
 export async function likePost(postId: string): Promise<void> {
   const { error } = await supabase.from('likes').insert({ post_id: postId });
