@@ -32,6 +32,9 @@ export default function Post() {
   const [popular, setPopular] = useState<MenuItem[]>([]);
   const [dishError, setDishError] = useState('');
   const [dishAttempt, setDishAttempt] = useState(0);
+  // True while the hall's menu is loading, so the photo screen does not read an empty list as "no dishes" (review of #56).
+  // Set where a load starts (choosing a hall, Reload dishes) and cleared when the latest request finishes.
+  const [dishesLoading, setDishesLoading] = useState(false);
   // True once the post is published but a rating still needs saving, so a retry never creates a second post.
   const [posted, setPosted] = useState(false);
   // True once the post is published but its extra photos still need attaching. The draft is locked like `posted`,
@@ -52,7 +55,8 @@ export default function Post() {
   useEffect(() => {
     if (!session || !hallId) return;
     let active = true;
-    loadMenuItems(hallId).then((items) => { if (active) setDishes(items); }).catch((error) => { if (active) setDishError(message(error)); });
+    loadMenuItems(hallId).then((items) => { if (active) setDishes(items); }).catch((error) => { if (active) setDishError(message(error)); })
+      .finally(() => { if (active) setDishesLoading(false); });
     // Only a convenience, so a failure just means no starter suggestions; searching still works.
     loadPopularDishes(hallId).then((items) => { if (active) setPopular(items); }).catch(() => { if (active) setPopular([]); });
     return () => { active = false; };
@@ -110,12 +114,12 @@ export default function Post() {
     if (id === hallId) return;
     // Extra photos are attached under the post's hall, so a retry after a lost response must not reuse a post saved at the old hall.
     postId.current = null;
-    setHallId(id); setDishes([]); setPopular([]); setPhotos((current) => current.map((photo) => (photo.dish ? { ...photo, dish: null, score: null } : photo))); setDishError('');
+    setHallId(id); setDishesLoading(true); setDishes([]); setPopular([]); setPhotos((current) => current.map((photo) => (photo.dish ? { ...photo, dish: null, score: null } : photo))); setDishError('');
   }
   function reset() {
-    setPhotos([]); setEditing(null); setCaption(''); setHallId(''); setDishes([]); setPopular([]); setDishError(''); setPosted(false); setPhotosPending(false); postId.current = null;
+    setPhotos([]); setEditing(null); setCaption(''); setHallId(''); setDishesLoading(false); setDishes([]); setPopular([]); setDishError(''); setPosted(false); setPhotosPending(false); postId.current = null;
   }
-  // Menu dishes are rated in the ratings table; a typed label's score travels with its photo.
+  // Menu dishes are rated in the ratings table, and the database copies a saved rating onto the photo; a typed label's score travels with its photo.
   const ratingsOf = (list: PhotoDraft[]) => list.flatMap((photo) => (photo.dish && photo.score !== null ? [{ menuItemId: photo.dish.id, score: photo.score }] : []));
   const ratings = ratingsOf(photos);
   const typedLabel = (photo: PhotoDraft) => (!photo.dish && photo.text.trim()) || undefined;
@@ -128,7 +132,7 @@ export default function Post() {
     const labeled = posted ? photos : labelTypedDishes(photos, dishes);
     if (labeled.some((photo, index) => photo !== photos[index])) setPhotos(labeled);
     try {
-      const { ratingError, photosError } = await postWithRating({ postId: postId.current, userId, hallId, caption, photos: labeled.map((photo) => ({ id: photo.id, base64: photo.base64, menuItemId: photo.dish?.id, dishText: typedLabel(photo), dishTextScore: typedLabel(photo) && photo.score !== null ? photo.score : undefined })), ratings: ratingsOf(labeled), alreadyPosted: posted, photosPending });
+      const { ratingError, photosError } = await postWithRating({ postId: postId.current, userId, hallId, caption, photos: labeled.map((photo) => ({ id: photo.id, base64: photo.base64, menuItemId: photo.dish?.id, dishText: typedLabel(photo), dishTextScore: typedLabel(photo) && photo.score !== null ? photo.score : undefined})), ratings: ratingsOf(labeled), alreadyPosted: posted, photosPending });
       if (photosError) {
         // The post is live and the ratings were attempted, so "Continue without the other photos" loses only those photos.
         setPosted(true); setPhotosPending(true);
@@ -144,8 +148,8 @@ export default function Post() {
   }
   const locked = busy || posted;
   const hallName = halls.find((hall) => hall.id === hallId)?.name ?? 'dining hall';
-  if (editing && photos.length) return <PhotoDetails photos={photos} activeId={editing} hallName={hallName} dishes={dishes} popular={popular} dishError={dishError} maxPhotos={MAX_PHOTOS} busy={busy} locked={posted} error={error}
-    onSelect={setEditing} onChange={changePhoto} onRemove={removePhoto} onAddMore={() => addPhotos(false)} onDone={() => setEditing(null)} onReloadDishes={() => { setDishError(''); setDishAttempt((value) => value + 1); }} />;
+  if (editing && photos.length) return <PhotoDetails photos={photos} activeId={editing} hallName={hallName} dishes={dishes} popular={popular} dishError={dishError} dishesLoading={dishesLoading} maxPhotos={MAX_PHOTOS} busy={busy} locked={posted} error={error}
+    onSelect={setEditing} onChange={changePhoto} onRemove={removePhoto} onAddMore={() => addPhotos(false)} onDone={() => setEditing(null)} onReloadDishes={() => { setDishError(''); setDishesLoading(true); setDishAttempt((value) => value + 1); }} />;
   const atLimit = photos.length >= MAX_PHOTOS;
   return <SafeAreaView style={styles.screen} edges={['top']}><KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={headerHeight}><ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content}>
     <Text style={styles.heading}>Share your plate</Text><Text style={styles.body}>Pick a dining hall, add up to {MAX_PHOTOS} photos, and say what each one is.</Text>

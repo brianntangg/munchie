@@ -446,6 +446,37 @@ describe('Posts about a dish', () => {
     expect(error).toBeNull();
     expect(data).toEqual([{ author_id: bob.id, menu_item_id: dishInHall, score: 4 }]);
   });
+
+  // Review of #56: a photo takes its author's rating when the rating is saved, and keeps it after a re-rating.
+  test("a photo takes its author's saved rating and keeps it when the dish is re-rated", async () => {
+    const scoreOf = async (postId: string) => {
+      const { data, error } = await alice.api.from('post_photos').select('menu_item_score').eq('post_id', postId).eq('slot', 0).single();
+      expect(error).toBeNull();
+      return data?.menu_item_score;
+    };
+    // Bob rated the dish 4 after his first post above, and Alice's rating of it never touches his photos.
+    expect(await scoreOf(photo.id)).toBe(4);
+    const second = newPhoto(bob);
+    cleanup.push({ member: () => bob, path: second.path });
+    await upload(bob, second.path);
+    expect((await bob.api.from('posts').insert({ ...post('Rand', dishInHall), id: second.id, photo_path: second.path })).error).toBeNull();
+    expect(await scoreOf(second.id)).toBeNull();
+    const { data: rerated, error: rerateError } = await bob.api.from('ratings').update({ score: 1 }).eq('menu_item_id', dishInHall).eq('author_id', bob.id).select('score');
+    expect(rerateError).toBeNull();
+    expect(rerated).toEqual([{ score: 1 }]);
+    expect(await scoreOf(second.id)).toBe(1);
+    expect(await scoreOf(photo.id)).toBe(4);
+  });
+
+  test('members cannot set or change a photo\'s dish score themselves', async () => {
+    const extra = newPhoto(bob);
+    cleanup.push({ member: () => bob, path: extra.path });
+    await upload(bob, extra.path);
+    const rand = halls.find((candidate) => candidate.name === 'Rand')!;
+    const sent = await bob.api.from('post_photos').insert({ id: extra.id, post_id: photo.id, dining_hall_id: rand.id, slot: 1, photo_path: extra.path, menu_item_id: dishInHall, menu_item_score: 5 });
+    expect(sent.error?.code).toBe('42501');
+    expect((await bob.api.from('post_photos').update({ menu_item_score: 5 }).eq('post_id', photo.id)).error?.code).toBe('42501');
+  });
 });
 
 describe('Posts with several photos', () => {
@@ -454,7 +485,7 @@ describe('Posts with several photos', () => {
   let rand: { id: string; name: string };
   let dishes: { id: string; name: string }[];
   // The post select the feed uses (POST_COLUMNS in src/lib/posts.ts).
-  const feedSelect = '*, profiles!inner(display_name), dining_halls!inner(name), post_photos(id, slot, photo_path, menu_item_id, dish_text, menu_items(name))';
+  const feedSelect = '*, profiles!inner(display_name), dining_halls!inner(name), post_photos(id, slot, photo_path, menu_item_id, menu_item_score, dish_text, dish_text_score, menu_items(name))';
   // What publishPost in src/lib/posts.ts attaches after the post itself: extra photos in slots 1 and up, in one request.
   const attach = (member: Member, count: number, tags: (string | null)[] = []) => member.api.from('post_photos').upsert(
     extras.slice(0, count).map((photo, index) => ({ id: photo.id, post_id: cover.id, dining_hall_id: rand.id, slot: index + 1, photo_path: photo.path, ...(tags[index] ? { menu_item_id: tags[index] } : {}) })),

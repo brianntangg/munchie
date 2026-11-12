@@ -20,6 +20,7 @@ jest.mock('../supabase', () => {
     then: (resolve: (value: unknown) => unknown, reject: (reason: unknown) => unknown) => mockUpdateResult().then(resolve, reject),
   };
   updateQuery.eq = record(updateQuery, 'update.eq');
+  updateQuery.select = record(updateQuery, 'update.select');
   const query: Record<string, unknown> = {
     insert: (...args: unknown[]) => mockInsert(...args),
     maybeSingle: (...args: unknown[]) => mockMaybeSingle(...args),
@@ -47,7 +48,7 @@ const signedIn = { data: { session: { user: { id: 'user-1' } } }, error: null };
 beforeEach(() => {
   jest.resetAllMocks();
   mockInsert.mockResolvedValue({ error: null });
-  mockUpdateResult.mockResolvedValue({ error: null });
+  mockUpdateResult.mockResolvedValue({ data: [{ id: 'rating-1' }], error: null });
   mockMaybeSingle.mockResolvedValue({ data: null, error: null });
   mockListResult.mockResolvedValue({ data: [], error: null });
   mockGetSession.mockResolvedValue(signedIn);
@@ -85,6 +86,14 @@ describe('submitRating', () => {
     await expect(submitRating({ menuItemId: 'dish-1', score: 2 })).resolves.toBeUndefined();
     expect(queryCalls('update')).toEqual([[{ score: 2 }]]);
     expect(queryCalls('update.eq')).toEqual([['menu_item_id', 'dish-1'], ['author_id', 'user-1']]);
+    expect(queryCalls('update.select')).toEqual([['id']]);
+  });
+
+  // Review of #56: an update that changes no row returns no error, so it must not be reported as saved.
+  it('reports the rating as not saved when the update changed no row', async () => {
+    mockInsert.mockResolvedValue({ error: { code: '23505', message: 'duplicate key' } });
+    mockUpdateResult.mockResolvedValue({ data: [], error: null });
+    await expect(submitRating({ menuItemId: 'dish-1', score: 2 })).rejects.toThrow('Your rating was not saved.');
   });
 
   // Review of #56: the update must name the member's own row, not rely on row-level security alone.
