@@ -1,5 +1,6 @@
 import { AccountButton, BackButton, FriendsButton, HeaderBackground, HeaderTitle } from '@/components/AppHeader';
 import { ProfileGate } from '@/components/ProfileGate';
+import { UnderHeaderContext } from '@/components/SafeArea';
 import { useAuth } from '@/lib/auth';
 import { Tabs } from 'expo-router';
 import type { ColorValue } from 'react-native';
@@ -17,7 +18,8 @@ export default function TabsLayout() {
   const { session } = useAuth();
   if (!session) return null;
   return (
-    <ProfileGate key={session.user.id} userId={session.user.id}><Tabs
+    // Every tab screen sits under the Munchie header, so their safe-area views skip the top inset.
+    <ProfileGate key={session.user.id} userId={session.user.id}><UnderHeaderContext.Provider value><Tabs
       // Friends and Account are opened from the header, so Back returns to whichever tab opened them.
       backBehavior="history"
       screenOptions={{
@@ -39,6 +41,6 @@ export default function TabsLayout() {
       {/* Opened from the header's corners rather than the tab bar. */}
       <Tabs.Screen name="friends" options={{ title: 'Friends', href: null, headerLeft: () => <BackButton /> }} />
       <Tabs.Screen name="account" options={{ title: 'Account', href: null, headerLeft: () => <BackButton /> }} />
-    </Tabs></ProfileGate>
+    </Tabs></UnderHeaderContext.Provider></ProfileGate>
   );
 }
