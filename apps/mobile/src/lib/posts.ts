@@ -103,7 +103,8 @@ export async function publishPost({ id, userId, hallId, caption, photos }: { id:
   if (!existing) {
     const { error } = await supabase.from('posts').insert({ id, author_id: userId, dining_hall_id: hallId, ...dishColumns(cover.photo), caption: caption.trim(), photo_path: cover.path });
     if (error) {
-      const { data: committed, error: lookupError } = await supabase.from('posts').select('id').eq('id', id).maybeSingle();
+      // Only this member's own post counts as saved, so an id that belongs to someone else is never treated as a success (review of #56).
+      const { data: committed, error: lookupError } = await supabase.from('posts').select('id').eq('id', id).eq('author_id', userId).maybeSingle();
       if (!committed) {
         // Never delete the photos when commit status is unknown. RLS also protects published images.
         if (!lookupError) await supabase.storage.from('food-photos').remove(files.map((file) => file.path));

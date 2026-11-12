@@ -255,6 +255,24 @@ describe('publishPost failures', () => {
     expect(mockUpsert).toHaveBeenCalledTimes(1);
   });
 
+  // Review of #56: a retry must not count someone else's post with the same id as its own.
+  it("only counts the member's own post as saved after an insert error", async () => {
+    mockInsert.mockResolvedValue({ error: { message: 'connection reset' } });
+    mockMaybeSingle
+      .mockResolvedValueOnce({ data: null, error: null })
+      .mockResolvedValueOnce({ data: { id: 'post-1' }, error: null });
+    await publishPost(post);
+    expect(queryCalls('eq').slice(-2)).toEqual([['id', 'post-1'], ['author_id', 'user-1']]);
+  });
+
+  it("fails and cleans up when the post id turns out to be someone else's", async () => {
+    const insertError = { code: '23505', message: 'duplicate key' };
+    mockInsert.mockResolvedValue({ error: insertError });
+    // The lookup is limited to the member's own posts, so another author's post with this id is not found.
+    await expect(publishPost(post)).rejects.toBe(insertError);
+    expect(mockRemove).toHaveBeenCalledWith([path]);
+  });
+
   it('keeps the photos when it cannot confirm whether the post was saved', async () => {
     const insertError = { message: 'connection reset' };
     mockInsert.mockResolvedValue({ error: insertError });
